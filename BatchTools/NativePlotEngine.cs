@@ -10,6 +10,13 @@ namespace XYDSignTool
 {
     public static class NativePlotEngine
     {
+        private class PlotContextState
+        {
+            public string CurrentLayout { get; set; }
+            public object TileMode { get; set; }
+            public object CvPort { get; set; }
+        }
+
         public static List<string> GetAvailablePrinters()
         {
             List<string> printers = new List<string>();
@@ -68,19 +75,21 @@ namespace XYDSignTool
 
         public static bool PlotToPdf(Database db, TitleBlockModel block, string outputPath, string printerName, string canonicalMediaName, string styleSheet)
         {
-            Extents2d plotWindow;
-            string windowError;
-            if (!TryBuildPlotWindow(block, out plotWindow, out windowError))
-            {
-                WriteMessage($"\n[打印拦截] {windowError}");
-                return false;
-            }
-
             bool success = false;
-            short bgPlot = (short)Application.GetSystemVariable("BACKGROUNDPLOT");
+            PlotContextState plotContextState = null;
+            Dictionary<string, object> oldSystemVariables = CaptureSystemVariables("BACKGROUNDPLOT", "OLEHIDE", "OLEQUALITY", "OLESTARTUP", "IMAGEQUALITY");
             try
             {
-                Application.SetSystemVariable("BACKGROUNDPLOT", 0);
+                ApplyOlePlotSystemVariables();
+                plotContextState = ActivatePlotContext(block);
+
+                Extents2d plotWindow;
+                string windowError;
+                if (!TryBuildPlotWindow(block, out plotWindow, out windowError))
+                {
+                    WriteMessage($"\n[打印拦截] {windowError}");
+                    return false;
+                }
 
                 using (Transaction tr = db.TransactionManager.StartTransaction())
                 {
@@ -97,6 +106,13 @@ namespace XYDSignTool
                     {
                         WriteMessage($"\n[打印拦截] 布局对象无效: {block.LayoutName}");
                         return false;
+                    }
+
+                    int preparedOleCount = PrepareOleFramesForPlot(tr, db);
+                    int preparedRasterCount = PrepareRasterImagesForPlot(tr, db);
+                    if (preparedOleCount > 0 || preparedRasterCount > 0)
+                    {
+                        WriteMessage($"\n[打印调试] 已准备 OLE 对象 {preparedOleCount} 个，嵌入图片 {preparedRasterCount} 个。");
                     }
 
                     PlotInfo pi = new PlotInfo();
@@ -156,7 +172,8 @@ namespace XYDSignTool
             }
             finally
             {
-                Application.SetSystemVariable("BACKGROUNDPLOT", bgPlot);
+                RestorePlotContext(plotContextState);
+                RestoreSystemVariables(oldSystemVariables);
             }
 
             return success;
@@ -192,6 +209,7 @@ namespace XYDSignTool
             ps.PlotPlotStyles = true;
             ps.PrintLineweights = true;
             ps.ScaleLineweights = false;
+            ApplyOleFriendlyPlotSettings(ps);
             if (!string.IsNullOrWhiteSpace(styleSheet))
             {
                 if (!TryPlotStep($"设置打印样式表[{styleSheet}]", () => psv.SetCurrentStyleSheet(ps, styleSheet), out error)) return false;
@@ -200,6 +218,214 @@ namespace XYDSignTool
             if (!TryPlotStep("复核布满图纸并居中", () => ApplyFitToPaperAndCenter(psv, ps), out error)) return false;
             WriteMessage($"\n[打印调试] 最终设置: 布满={ps.UseStandardScale && ps.StdScaleType == StdScaleType.ScaleToFit}, 居中={ps.PlotCentered}, 原点=({ps.PlotOrigin.X:0.###},{ps.PlotOrigin.Y:0.###}), 旋转={ps.PlotRotation}, 纸张=({ps.PlotPaperSize.X:0.###},{ps.PlotPaperSize.Y:0.###}), 窗口={FormatWindow(plotWindow)}");
             return true;
+        }
+
+        private static void ApplyOleFriendlyPlotSettings(PlotSettings ps)
+        {
+            try { ps.PlotHidden = false; } catch { }
+            try { ps.PlotTransparency = true; } catch { }
+            try { ps.ShadePlot = PlotSettingsShadePlotType.AsDisplayed; } catch { }
+            try { ps.ShadePlotResLevel = ShadePlotResLevel.Maximum; } catch { }
+            try { ps.ShadePlotCustomDpi = 600; } catch { }
+        }
+
+        private static int PrepareOleFramesForPlot(Transaction tr, Database db)
+        {
+            int count = 0;
+            if (tr == null || db == null || db.BlockTableId.IsNull) return count;
+
+            BlockTable blockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead, false) as BlockTable;
+            if (blockTable == null) return count;
+
+            foreach (ObjectId btrId in blockTable)
+            {
+                BlockTableRecord btr = tr.GetObject(btrId, OpenMode.ForRead, false) as BlockTableRecord;
+                if (btr == null) continue;
+
+                foreach (ObjectId id in btr)
+                {
+                    try
+                    {
+                        Ole2Frame ole = tr.GetObject(id, OpenMode.ForWrite, false) as Ole2Frame;
+                        if (ole == null) continue;
+
+                        try { ole.Visible = true; } catch { }
+                        try { ole.OutputQuality = 2; } catch { }
+                        try { ole.AutoOutputQuality = 2; } catch { }
+                        try { ole.RecordGraphicsModified(true); } catch { }
+                        try { ole.Draw(); } catch { }
+                        count++;
+                    }
+                    catch { }
+                }
+            }
+
+            return count;
+        }
+
+        private static int PrepareRasterImagesForPlot(Transaction tr, Database db)
+        {
+            int count = 0;
+            if (tr == null || db == null || db.BlockTableId.IsNull) return count;
+
+            BlockTable blockTable = tr.GetObject(db.BlockTableId, OpenMode.ForRead, false) as BlockTable;
+            if (blockTable == null) return count;
+
+            foreach (ObjectId btrId in blockTable)
+            {
+                BlockTableRecord btr = tr.GetObject(btrId, OpenMode.ForRead, false) as BlockTableRecord;
+                if (btr == null) continue;
+
+                foreach (ObjectId id in btr)
+                {
+                    try
+                    {
+                        RasterImage rasterImage = tr.GetObject(id, OpenMode.ForWrite, false) as RasterImage;
+                        if (rasterImage == null) continue;
+
+                        rasterImage.ShowImage = true;
+                        rasterImage.DisplayOptions = ImageDisplayOptions.Show;
+                        try { rasterImage.RecordGraphicsModified(true); } catch { }
+                        try { rasterImage.Draw(); } catch { }
+
+                        if (!rasterImage.ImageDefId.IsNull)
+                        {
+                            RasterImageDef imageDef = tr.GetObject(rasterImage.ImageDefId, OpenMode.ForWrite, false) as RasterImageDef;
+                            if (imageDef != null)
+                            {
+                                try { if (!imageDef.IsLoaded) imageDef.Load(); } catch { }
+                                try { imageDef.ImageModified = true; } catch { }
+                                try { imageDef.UpdateEntities(); } catch { }
+                            }
+                        }
+
+                        count++;
+                    }
+                    catch { }
+                }
+            }
+
+            return count;
+        }
+
+        private static Dictionary<string, object> CaptureSystemVariables(params string[] names)
+        {
+            Dictionary<string, object> values = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            foreach (string name in names)
+            {
+                try { values[name] = Application.GetSystemVariable(name); }
+                catch { }
+            }
+            return values;
+        }
+
+        private static void ApplyOlePlotSystemVariables()
+        {
+            TrySetSystemVariable("BACKGROUNDPLOT", 0);
+            TrySetSystemVariable("OLEHIDE", 0);
+            TrySetSystemVariable("OLEQUALITY", 2);
+            TrySetSystemVariable("OLESTARTUP", 1);
+            TrySetSystemVariable("IMAGEQUALITY", 1);
+        }
+
+        private static void RestoreSystemVariables(Dictionary<string, object> values)
+        {
+            if (values == null) return;
+            foreach (KeyValuePair<string, object> item in values)
+            {
+                TrySetSystemVariable(item.Key, item.Value);
+            }
+        }
+
+        private static void TrySetSystemVariable(string name, object value)
+        {
+            try { Application.SetSystemVariable(name, value); } catch { }
+        }
+
+        private static bool TryGetSystemVariable(string name, out object value)
+        {
+            value = null;
+            try
+            {
+                value = Application.GetSystemVariable(name);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static PlotContextState ActivatePlotContext(TitleBlockModel block)
+        {
+            PlotContextState state = new PlotContextState();
+            TryGetSystemVariable("TILEMODE", out object tileMode);
+            TryGetSystemVariable("CVPORT", out object cvPort);
+            state.TileMode = tileMode;
+            state.CvPort = cvPort;
+
+            try { state.CurrentLayout = LayoutManager.Current.CurrentLayout; } catch { }
+
+            if (block != null && block.IsModelSpace)
+            {
+                TrySetSystemVariable("TILEMODE", 1);
+                try { LayoutManager.Current.CurrentLayout = "Model"; } catch { }
+                SetModelTopView();
+            }
+            else if (block != null)
+            {
+                TrySetSystemVariable("TILEMODE", 0);
+                try { LayoutManager.Current.CurrentLayout = block.LayoutName; } catch { }
+                TrySetSystemVariable("CVPORT", 1);
+            }
+
+            return state;
+        }
+
+        private static void RestorePlotContext(PlotContextState state)
+        {
+            if (state == null) return;
+
+            try
+            {
+                int tileMode = Convert.ToInt32(state.TileMode);
+                if (tileMode == 0)
+                {
+                    TrySetSystemVariable("TILEMODE", 0);
+                    if (!string.IsNullOrWhiteSpace(state.CurrentLayout))
+                    {
+                        try { LayoutManager.Current.CurrentLayout = state.CurrentLayout; } catch { }
+                    }
+                    if (state.CvPort != null) TrySetSystemVariable("CVPORT", state.CvPort);
+                }
+                else
+                {
+                    TrySetSystemVariable("TILEMODE", 1);
+                }
+            }
+            catch
+            {
+                if (state.TileMode != null) TrySetSystemVariable("TILEMODE", state.TileMode);
+                if (state.CvPort != null) TrySetSystemVariable("CVPORT", state.CvPort);
+            }
+        }
+
+        private static void SetModelTopView()
+        {
+            try
+            {
+                var doc = Application.DocumentManager.MdiActiveDocument;
+                if (doc == null || doc.Editor == null) return;
+
+                using (ViewTableRecord view = doc.Editor.GetCurrentView())
+                {
+                    view.ViewDirection = Vector3d.ZAxis;
+                    view.Target = Point3d.Origin;
+                    view.ViewTwist = 0.0;
+                    doc.Editor.SetCurrentView(view);
+                }
+            }
+            catch { }
         }
 
         private static void ApplyFitToPaperAndCenter(PlotSettingsValidator psv, PlotSettings ps)

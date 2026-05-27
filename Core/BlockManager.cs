@@ -297,7 +297,9 @@ namespace XYDSignTool
             const string prefix = "XYD-TITLEBLOCK_";
             if (string.IsNullOrWhiteSpace(blockName)) return "";
             if (!blockName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return "";
-            return blockName.Substring(prefix.Length).Trim();
+            string suffix = blockName.Substring(prefix.Length).Trim();
+            string extracted = TitleBlockRecognitionSettings.ExtractPageSizeFromBlockName(suffix);
+            return string.IsNullOrWhiteSpace(extracted) ? suffix : extracted;
         }
 
         private static string GetEffectiveBlockName(BlockReference br, Transaction tr)

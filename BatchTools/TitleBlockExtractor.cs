@@ -8,11 +8,10 @@ namespace XYDSignTool
 {
     public static class TitleBlockExtractor
     {
-        private static readonly string[] TargetPrefixes = { "MYTITLEBLOCK", "TEMPLATE_", "建筑图签", "A0", "A1", "A2", "A3", "A4", "XYD-TITLEBLOCK" };
-
         public static List<TitleBlockModel> ScanDatabase(Database db, string docName)
         {
             List<TitleBlockModel> list = new List<TitleBlockModel>();
+            List<TitleBlockRecognitionRule> rules = TitleBlockRecognitionSettings.GetActiveRules();
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 DBDictionary layoutDict = tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead) as DBDictionary;
@@ -26,10 +25,11 @@ namespace XYDSignTool
                         BlockReference br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
                         if (br != null)
                         {
-                            string effName = GetEffectiveName(br, tr).ToUpper();
-                            if (IsTargetBlock(effName))
+                            string effName = GetEffectiveName(br, tr);
+                            TitleBlockRecognitionRule rule = FindMatchingRule(effName, rules);
+                            if (rule != null)
                             {
-                                var model = BuildModel(br, tr, docName, layout.LayoutName, layout.ModelType);
+                                var model = BuildModel(br, tr, docName, layout.LayoutName, layout.ModelType, effName, rule);
                                 if (model != null) list.Add(model);
                             }
                         }
@@ -57,17 +57,27 @@ namespace XYDSignTool
             return results;
         }
 
-        private static bool IsTargetBlock(string name)
+        private static TitleBlockRecognitionRule FindMatchingRule(string name, List<TitleBlockRecognitionRule> rules)
         {
-            foreach (var prefix in TargetPrefixes) { if (name.Contains(prefix)) return true; }
-            return false;
+            foreach (TitleBlockRecognitionRule rule in rules)
+            {
+                if (TitleBlockRecognitionSettings.MatchesBlockName(rule, name)) return rule;
+            }
+            return null;
         }
 
-        private static TitleBlockModel BuildModel(BlockReference br, Transaction tr, string docName, string layoutName, bool isModelSpace)
+        private static TitleBlockModel BuildModel(BlockReference br, Transaction tr, string docName, string layoutName, bool isModelSpace, string effectiveName, TitleBlockRecognitionRule rule)
         {
             var attrs = GetAttributes(br, tr);
-            string title = GetMappedValue(attrs, new[] { "DRAWTITLE", "TITLE", "图名", "DR_TITLE", "NAME" });
-            if (string.IsNullOrEmpty(title) || title.Contains("封面")) return null;
+            string title = GetMappedValue(attrs, rule.DrawTitleTags);
+            bool isXydCoverTitleBlock = effectiveName.Equals("XYD-TITLEBLOCK_A2封面", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(title) || (title.Contains("封面") && !isXydCoverTitleBlock)) return null;
+
+            string pageSize = GetMappedValue(attrs, rule.PageSizeTags);
+            if (string.IsNullOrWhiteSpace(pageSize) && rule.ExtractPageSizeFromBlockName)
+            {
+                pageSize = TitleBlockRecognitionSettings.ExtractPageSizeFromBlockName(effectiveName);
+            }
 
             TitleBlockModel model = new TitleBlockModel
             {
@@ -75,10 +85,10 @@ namespace XYDSignTool
                 DocumentName = docName,
                 LayoutName = layoutName,
                 IsModelSpace = isModelSpace,
-                DrawNum = GetMappedValue(attrs, new[] { "DRAWNUM", "DRAWNO", "图号", "DR_NUM", "PROJECT_NO" }),
+                DrawNum = GetMappedValue(attrs, rule.DrawNumTags),
                 DrawTitle = title,
-                PageSize = GetMappedValue(attrs, new[] { "PAGESIZE", "PAPER", "图幅", "FORMAT", "SIZE" }),
-                DrawScale = GetMappedValue(attrs, new[] { "DRAWSCALE", "SCALE", "比例", "SC" }),
+                PageSize = pageSize,
+                DrawScale = GetMappedValue(attrs, rule.DrawScaleTags),
                 Version = GetMappedValue(attrs, new[] { "VERSION", "VER", "版本", "REV" }),
                 Date = GetMappedValue(attrs, new[] { "DATE", "日期" }),
                 Remarks = GetMappedValue(attrs, new[] { "REMARKS", "REMARK", "备注", "NOTE" })
@@ -94,6 +104,11 @@ namespace XYDSignTool
             catch { return null; }
 
             return model;
+        }
+
+        private static string GetMappedValue(Dictionary<string, string> attrs, string tagNames)
+        {
+            return GetMappedValue(attrs, TitleBlockRecognitionSettings.SplitNames(tagNames));
         }
 
         private static bool TryGetFrameExtents(BlockReference br, Transaction tr, out Extents3d extents)

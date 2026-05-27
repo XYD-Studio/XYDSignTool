@@ -114,6 +114,7 @@ namespace XYDSignTool
             dropFrame.Items.Add(CreateButton("A1+0.75 横向图框", "XYD_INS:XYD-TITLEBLOCK_A1+0.75", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A1+1 横向图框", "XYD_INS:XYD-TITLEBLOCK_A1+1", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A2 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2", RibbonItemSize.Large, "frame"));
+            dropFrame.Items.Add(CreateButton("A2 封面图框", "XYD_INS:XYD-TITLEBLOCK_A2封面", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A2+0.25 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2+0.25", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A2+0.5 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2+0.5", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A2+0.75 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2+0.75", RibbonItemSize.Large, "frame"));
@@ -136,17 +137,26 @@ namespace XYDSignTool
             panelSign.Items.Add(CreateButton("导出 JSON 库", "XYD_JSON ", RibbonItemSize.Large, "json"));
 
             // ------------------------------------------------------------
-            RibbonPanelSource panelBatch = CreatePanel(tab, "批量工具");
+            RibbonPanelSource panelBatch = CreatePanel(tab, "出图与目录");
             // ★ 修复：绑定新做的批量出图、目录表相关图标
             panelBatch.Items.Add(CreateButton("批量出图", "XYD_BATCHPRINT ", RibbonItemSize.Large, "batchprint"));
             panelBatch.Items.Add(CreateButton("图纸目录中心", "XYD_DIRECTORY ", RibbonItemSize.Large, "table"));
-            panelBatch.Items.Add(CreateButton("批量查字段", "XYD_FINDTEXT ", RibbonItemSize.Large, "default"));
+            panelBatch.Items.Add(CreateButton("图框识别", "XYD_TITLEBLOCK_RULES ", RibbonItemSize.Large, "edit"));
 
             // 面板 3：统计辅助工具
             RibbonPanelSource panelStat = CreatePanel(tab, "统计与测量");
-            panelStat.Items.Add(CreateButton("图块统计", "XYD_COUNTBLK ", RibbonItemSize.Large, "default"));
-            panelStat.Items.Add(CreateButton("动块长度", "XYD_DYNLEN ", RibbonItemSize.Large, "default"));
-            panelStat.Items.Add(CreateButton("线段总长", "XYD_LINELEN ", RibbonItemSize.Large, "default"));
+            panelStat.Items.Add(CreateButton("图块计数", "XYD_COUNTBLK ", RibbonItemSize.Large, "blockcount"));
+            panelStat.Items.Add(CreateButton("动块长度", "XYD_DYNLEN ", RibbonItemSize.Large, "dynlen"));
+            panelStat.Items.Add(CreateButton("规格统计", "XYD_DYNSPEC ", RibbonItemSize.Large, "spec"));
+            panelStat.Items.Add(CreateButton("线段总长", "XYD_LINELEN ", RibbonItemSize.Large, "linelen"));
+            panelStat.Items.Add(CreateButton("批量查字段", "XYD_FINDTEXT ", RibbonItemSize.Large, "findtext"));
+            panelStat.Items.Add(CreateButton("批量旋转", "XYD_MRO ", RibbonItemSize.Large, "rotate"));
+
+            RibbonPanelSource panelImage = CreatePanel(tab, "图片工具");
+            panelImage.Items.Add(CreateButton("批量嵌图", "XYD_BATCHOLE ", RibbonItemSize.Large, "embedimage"));
+
+            RibbonPanelSource panelHelp = CreatePanel(tab, "帮助");
+            panelHelp.Items.Add(CreateButton("使用帮助", "XYD_HELP ", RibbonItemSize.Large, "help"));
 
             tab.IsActive = true;
         }
@@ -193,7 +203,94 @@ namespace XYDSignTool
 
             btn.CommandParameter = command;
             btn.CommandHandler = new RibbonCommandHandler();
+            ApplyCommandToolTip(btn, text, command);
             return btn;
+        }
+
+        private void ApplyCommandToolTip(RibbonButton button, string title, string command)
+        {
+            if (button == null || string.IsNullOrWhiteSpace(command)) return;
+            if (command.TrimStart().StartsWith("XYD_INS:", StringComparison.OrdinalIgnoreCase)) return;
+
+            string displayCommand = command.Trim();
+            string description = GetCommandDescription(displayCommand);
+            string shortcut = GetCommandShortcut(displayCommand);
+            RibbonToolTip toolTip = new RibbonToolTip
+            {
+                Title = title,
+                Content = $"{description}\n命令: {shortcut}",
+                Command = shortcut,
+                Shortcut = shortcut,
+                IsHelpEnabled = false
+            };
+
+            button.ToolTip = toolTip;
+            button.Description = description;
+            button.HelpTopic = shortcut;
+        }
+
+        private string GetCommandDescription(string command)
+        {
+            switch ((command ?? "").Trim().ToUpperInvariant())
+            {
+                case "XYD_COST":
+                    return "统计标识属性块并生成算量及造价清单。";
+                case "XYD_CAD":
+                    return "在当前图纸中生成标识统计表格。";
+                case "XYD_XLS":
+                    return "导出当前图纸的普通标识清单。";
+                case "XYD_EDIT":
+                    return "批量查看并编辑当前图纸中的标识属性。";
+                case "XYD_JSON":
+                    return "导出标识数据 JSON，用于后续复用或外部处理。";
+                case "XYD_BATCHPRINT":
+                    return "按图框识别结果批量输出 PDF。";
+                case "XYD_BATCHOLE":
+                    return "调用外挂 LSP 批量导入图片，结束后自动恢复 CAD 对话框设置。";
+                case "XYD_DIRECTORY":
+                    return "提取图框信息，生成、导入或导出图纸目录。";
+                case "XYD_TITLEBLOCK_RULES":
+                    return "配置用户自定义图框块名前缀和属性字段映射。";
+                case "XYD_COUNTBLK":
+                    return "选择一个图块样本，统计同名图块使用次数。";
+                case "XYD_DYNLEN":
+                    return "选择动态图块样本，汇总指定动态参数的数值。";
+                case "XYD_DYNSPEC":
+                    return "选择动态图块样本，按指定动态参数分类计数。";
+                case "XYD_LINELEN":
+                    return "统计预选或框选的线段、圆弧、多段线等曲线总长度。";
+                case "XYD_FINDTEXT":
+                    return "查找文本和块属性字段，统计次数并自动选中匹配对象。";
+                case "XYD_MRO":
+                    return "将预选或框选对象分别绕各自包围盒中心旋转。";
+                case "XYD_HELP":
+                    return "查看 XYD 工具集介绍、详细使用教程、定制开发联系方式和版权声明。";
+                default:
+                    return "执行 XYD 工具命令。";
+            }
+        }
+
+        private string GetCommandShortcut(string command)
+        {
+            switch ((command ?? "").Trim().ToUpperInvariant())
+            {
+                case "XYD_BATCHOLE":
+                    return "XYD_BATCHOLE / BatchOLE";
+                case "XYD_COUNTBLK":
+                    return "XYD_COUNTBLK / TJTK";
+                case "XYD_DYNLEN":
+                    return "XYD_DYNLEN / TJCD";
+                case "XYD_DYNSPEC":
+                    return "XYD_DYNSPEC / TJGG";
+                case "XYD_LINELEN":
+                    return "XYD_LINELEN / ZZ";
+                case "XYD_FINDTEXT":
+                    return "XYD_FINDTEXT / MCOUNT";
+                case "XYD_MRO":
+                    return "XYD_MRO / MRO";
+                default:
+                    return command.Trim();
+            }
         }
 
         private void AutoLoadLispFiles()
@@ -208,11 +305,25 @@ namespace XYDSignTool
                     string[] files = System.IO.Directory.GetFiles(lispDir, "*.lsp");
                     if (files.Length > 0 && doc != null)
                     {
-                        foreach (string file in files) doc.SendStringToExecute($"(load \"{file.Replace("\\", "/")}\" \"\")\n", false, false, false);
+                        foreach (string file in files)
+                        {
+                            if (IsRewrittenLegacyLisp(file)) continue;
+                            doc.SendStringToExecute($"(load \"{file.Replace("\\", "/")}\" \"\")\n", false, false, false);
+                        }
                     }
                 }
             }
             catch { }
+        }
+
+        private bool IsRewrittenLegacyLisp(string file)
+        {
+            string name = System.IO.Path.GetFileName(file);
+            return name.Equals("MRO批量旋转.lsp", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("XYD_COUNTBLK.lsp", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("XYD_FINDTEXT.lsp", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("统计线段长度.lsp", StringComparison.OrdinalIgnoreCase) ||
+                   name.Equals("BatchOLE_V3.1批量导入图片.lsp", StringComparison.OrdinalIgnoreCase);
         }
     }
 

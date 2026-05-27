@@ -88,6 +88,8 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <Reference Include="UIAutomationClient" />
+    <Reference Include="UIAutomationTypes" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
@@ -100,6 +102,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BatchTools\BatchCommands.cs" />
+    <Compile Include="BatchTools\BatchOleImageEmbedCommands.cs" />
     <Compile Include="BatchTools\DirectoryEditorWindow.cs" />
     <Compile Include="BatchTools\DocSelectorWindow.cs" />
     <Compile Include="BatchTools\NativePlotEngine.cs" />
@@ -107,7 +110,15 @@
     <Compile Include="BatchTools\PlotPreflightWindow.cs" />
     <Compile Include="BatchTools\TitleBlockExtractor.cs" />
     <Compile Include="BatchTools\TitleBlockModel.cs" />
+    <Compile Include="BatchTools\TitleBlockRecognitionSettings.cs" />
+    <Compile Include="BatchTools\TitleBlockRecognitionWindow.cs" />
     <Compile Include="Core\BlockManager.cs" />
+    <Compile Include="Core\HelpCommands.cs" />
+    <Compile Include="Core\HelpWindow.cs" />
+    <Compile Include="StatTools\BlockStatisticsCommands.cs" />
+    <Compile Include="StatTools\CurveLengthCommands.cs" />
+    <Compile Include="StatTools\ObjectRotationCommands.cs" />
+    <Compile Include="StatTools\TextSearchCommands.cs" />
     <Compile Include="SignCalculate\AreaSorterWindow.cs" />
     <Compile Include="SignCalculate\CadTableGenerator.cs" />
     <Compile Include="Commands.cs" />
@@ -115,21 +126,10 @@
     <Compile Include="Core\IconFactory.cs" />
     <Compile Include="SignCalculate\PriceManagerWindow.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Properties\Resources.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DesignTime>True</DesignTime>
-      <DependentUpon>Resources.resx</DependentUpon>
-    </Compile>
     <Compile Include="Core\RibbonBuilder.cs" />
     <Compile Include="SignCalculate\SignEditorWindow.cs" />
     <Compile Include="SignCalculate\SignExtractor.cs" />
     <Compile Include="SignCalculate\SignItem.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Properties\Resources.resx">
-      <Generator>ResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\icon_calc.png" />
@@ -142,6 +142,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="PMPFiles\README.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Lisp\*.lsp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

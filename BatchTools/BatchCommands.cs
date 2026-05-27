@@ -46,6 +46,13 @@ namespace XYDSignTool
             RunDirectoryPanel();
         }
 
+        [CommandMethod("XYD_TITLEBLOCK_RULES", CommandFlags.Session)]
+        public void ConfigureTitleBlockRecognition()
+        {
+            TitleBlockRecognitionWindow window = new TitleBlockRecognitionWindow();
+            Application.ShowModalWindow(window);
+        }
+
         private void RunDirectoryPanel()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
