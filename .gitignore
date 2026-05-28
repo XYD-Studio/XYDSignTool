@@ -13,6 +13,9 @@ obj/
 x64/
 x86/
 
+
+Installer/
+
 # .NET / NuGet
 packages/
 *.nupkg

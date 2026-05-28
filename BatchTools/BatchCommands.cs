@@ -138,22 +138,22 @@ namespace XYDSignTool
 
             foreach (Document openDoc in Application.DocumentManager)
             {
+                List<TitleBlockModel> blocksForOpenDoc = allBlocks.Where(b => b.DocumentName == openDoc.Name).ToList();
+                if (blocksForOpenDoc.Count == 0) continue;
+
                 Application.DocumentManager.MdiActiveDocument = openDoc;
                 using (DocumentLock loc = openDoc.LockDocument())
                 {
-                    foreach (var b in allBlocks)
+                    foreach (var b in blocksForOpenDoc)
                     {
-                        if (b.DocumentName == openDoc.Name)
-                        {
-                            string safeTitle = SafeStr(b.DrawTitle).Replace("/", "_").Replace(":", "_").Replace("\\", "_").Replace("*", "_").Replace("?", "_").Replace("\"", "_").Replace("<", "_").Replace(">", "_").Replace("|", "_");
-                            string safeNum = SafeStr(b.DrawNum).Replace("/", "_").Replace("\\", "_").Replace(":", "_");
-                            string pdfName = $"{safeNum}_{safeTitle}.pdf";
-                            string requiredPaper = GetPaperName(b.PageSize);
-                            string mappedCanonicalPaper = finalPaperMapping[requiredPaper];
+                        string safeTitle = SafeStr(b.DrawTitle).Replace("/", "_").Replace(":", "_").Replace("\\", "_").Replace("*", "_").Replace("?", "_").Replace("\"", "_").Replace("<", "_").Replace(">", "_").Replace("|", "_");
+                        string safeNum = SafeStr(b.DrawNum).Replace("/", "_").Replace("\\", "_").Replace(":", "_");
+                        string pdfName = $"{safeNum}_{safeTitle}.pdf";
+                        string requiredPaper = GetPaperName(b.PageSize);
+                        string mappedCanonicalPaper = finalPaperMapping[requiredPaper];
 
-                            WriteBatchMessage($"\n正在打印: {pdfName}...");
-                            if (NativePlotEngine.PlotToPdf(openDoc.Database, b, outDir + pdfName, defaultPrinter, mappedCanonicalPaper, defaultCtb)) successCount++;
-                        }
+                        WriteBatchMessage($"\n正在打印: {pdfName}...");
+                        if (NativePlotEngine.PlotToPdf(openDoc.Database, b, outDir + pdfName, defaultPrinter, mappedCanonicalPaper, defaultCtb)) successCount++;
                     }
                 }
             }

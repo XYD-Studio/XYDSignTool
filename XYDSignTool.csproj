@@ -138,6 +138,9 @@
     <Resource Include="Resources\icon_print.png" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="Resources\logo.png" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="PMPFiles\**\*.pmp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

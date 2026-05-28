@@ -1,7 +1,11 @@
+using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace XYDSignTool
 {
@@ -9,6 +13,8 @@ namespace XYDSignTool
     {
         private const string SupportEmail = "xyd@xy-d.top";
         private const string GitHubUrl = "https://github.com/XYD-Studio/XYDSignTool";
+        private const string StudioUrl = "https://www.xy-d.top/";
+        private const string LogoResourceUri = "pack://application:,,,/XYDSignTool;component/Resources/logo.png";
 
         public HelpWindow()
         {
@@ -35,7 +41,18 @@ namespace XYDSignTool
             };
             DockPanel.SetDock(header, Dock.Top);
 
-            StackPanel headerStack = new StackPanel();
+            DockPanel headerContent = new DockPanel();
+            Button logoButton = CreateLogoButton();
+            if (logoButton != null)
+            {
+                DockPanel.SetDock(logoButton, Dock.Left);
+                headerContent.Children.Add(logoButton);
+            }
+
+            StackPanel headerStack = new StackPanel
+            {
+                VerticalAlignment = VerticalAlignment.Center
+            };
             headerStack.Children.Add(new TextBlock
             {
                 Text = "XYD 工具集 使用帮助",
@@ -50,7 +67,8 @@ namespace XYDSignTool
                 FontSize = 13,
                 Margin = new Thickness(0, 6, 0, 0)
             });
-            header.Child = headerStack;
+            headerContent.Children.Add(headerStack);
+            header.Child = headerContent;
             root.Children.Add(header);
 
             StackPanel bottom = new StackPanel
@@ -111,6 +129,60 @@ namespace XYDSignTool
             root.Children.Add(viewer);
 
             Content = root;
+        }
+
+        private static Button CreateLogoButton()
+        {
+            try
+            {
+                BitmapImage logoSource = new BitmapImage();
+                logoSource.BeginInit();
+                logoSource.UriSource = new Uri(LogoResourceUri, UriKind.Absolute);
+                logoSource.CacheOption = BitmapCacheOption.OnLoad;
+                logoSource.EndInit();
+                logoSource.Freeze();
+
+                Image logo = new Image
+                {
+                    Source = logoSource,
+                    Width = 92,
+                    Height = 92,
+                    Stretch = Stretch.Uniform
+                };
+
+                Button button = new Button
+                {
+                    Content = logo,
+                    Width = 92,
+                    Height = 92,
+                    Padding = new Thickness(0),
+                    Margin = new Thickness(0, 0, 18, 0),
+                    Background = Brushes.Transparent,
+                    BorderBrush = Brushes.Transparent,
+                    Cursor = Cursors.Hand,
+                    ToolTip = "访问玄宇绘世官网",
+                    Focusable = false
+                };
+                button.Click += (s, e) => OpenStudioWebsite();
+                return button;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void OpenStudioWebsite()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo(StudioUrl) { UseShellExecute = true });
+            }
+            catch
+            {
+                Clipboard.SetText(StudioUrl);
+                MessageBox.Show("无法自动打开官网，网址已复制到剪贴板。", "XYD 工具集", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
 
         private FlowDocument BuildDocument()
