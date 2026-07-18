@@ -15,7 +15,6 @@ namespace XYDSignTool
         {
             var doc = Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
-            var db = doc.Database;
             var ed = doc.Editor;
 
             string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
@@ -31,9 +30,41 @@ namespace XYDSignTool
             string[] libraryFiles = Directory.GetFiles(blocksDir, "*.dwg");
             if (libraryFiles.Length == 0) return;
 
+            InsertBlockFromLibraryCore(blockName, libraryFiles, false);
+        }
+
+        public static void InsertBlockFromLibrary(string blockName, string sourceDwgPath, bool promptOnDuplicate)
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null) return;
+            var ed = doc.Editor;
+
+            if (string.IsNullOrWhiteSpace(sourceDwgPath) || !File.Exists(sourceDwgPath))
+            {
+                ed.WriteMessage($"\n[XYD 错误] 自定义图库文件不存在: {sourceDwgPath}\n");
+                return;
+            }
+
+            InsertBlockFromLibraryCore(blockName, new[] { sourceDwgPath }, promptOnDuplicate);
+        }
+
+        private static void InsertBlockFromLibraryCore(string blockName, string[] libraryFiles, bool promptOnDuplicate)
+        {
+            var doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null || string.IsNullOrWhiteSpace(blockName)) return;
+            var db = doc.Database;
+            var ed = doc.Editor;
+
             bool isTitleBlock = blockName.StartsWith("XYD-TITLEBLOCK_", StringComparison.OrdinalIgnoreCase);
             LibraryBlockData libraryBlock = FindLibraryBlock(libraryFiles, blockName);
+            if (promptOnDuplicate && (libraryBlock == null || !libraryBlock.Found))
+            {
+                ed.WriteMessage($"\n[XYD 错误] 所选自定义图库中已找不到图块 '{blockName}'，请刷新图库后重试。\n");
+                return;
+            }
+
             ObjectId blockId = ObjectId.Null;
+            LibraryBlockData attributeData = libraryBlock;
 
             using (DocumentLock loc = doc.LockDocument())
             {
@@ -50,8 +81,37 @@ namespace XYDSignTool
                     tr.Commit();
                 }
 
-                // 2. 图框块每次都刷新定义，避免当前图纸里的旧块定义反复带出空 PAGESIZE。
-                if (blockId == ObjectId.Null || isTitleBlock)
+                bool shouldImport = blockId == ObjectId.Null || isTitleBlock;
+                DuplicateRecordCloning cloneMode = hasBlockInCurrentDrawing && isTitleBlock
+                    ? DuplicateRecordCloning.Replace
+                    : DuplicateRecordCloning.Ignore;
+
+                if (promptOnDuplicate)
+                {
+                    shouldImport = true;
+                    cloneMode = hasBlockInCurrentDrawing ? DuplicateRecordCloning.Replace : DuplicateRecordCloning.Ignore;
+                    if (hasBlockInCurrentDrawing)
+                    {
+                        System.Windows.MessageBoxResult choice = System.Windows.MessageBox.Show(
+                            $"当前图纸已经存在同名图块 [{blockName}]。\n\n" +
+                            "选择“是”：使用所选图库替换定义，图中已有的同名图块也会更新。\n" +
+                            "选择“否”：保留并使用当前图纸中的定义。\n" +
+                            "选择“取消”：停止本次插入。",
+                            "同名图块处理",
+                            System.Windows.MessageBoxButton.YesNoCancel,
+                            System.Windows.MessageBoxImage.Warning);
+
+                        if (choice == System.Windows.MessageBoxResult.Cancel) return;
+                        if (choice == System.Windows.MessageBoxResult.No)
+                        {
+                            shouldImport = false;
+                            attributeData = null;
+                        }
+                    }
+                }
+
+                // 2. 内置图框每次刷新；自定义图块按同名提示结果决定是否导入。
+                if (shouldImport)
                 {
                     if (libraryBlock == null || !libraryBlock.Found)
                     {
@@ -65,14 +125,10 @@ namespace XYDSignTool
                     }
                     else
                     {
-                        DuplicateRecordCloning cloneMode = hasBlockInCurrentDrawing && isTitleBlock
-                            ? DuplicateRecordCloning.Replace
-                            : DuplicateRecordCloning.Ignore;
-
                         string importError;
                         if (!ImportBlockDefinition(db, libraryBlock.LibraryPath, blockName, cloneMode, out importError))
                         {
-                            if (blockId == ObjectId.Null)
+                            if (blockId == ObjectId.Null || promptOnDuplicate)
                             {
                                 ed.WriteMessage($"\n[XYD 错误] 导入图块 '{blockName}' 失败: {importError}\n");
                                 return;
@@ -86,6 +142,11 @@ namespace XYDSignTool
                     using (Transaction tr2 = db.TransactionManager.StartTransaction())
                     {
                         BlockTable bt2 = tr2.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
+                        if (bt2 == null || !bt2.Has(blockName))
+                        {
+                            ed.WriteMessage($"\n[XYD 错误] 导入后仍找不到图块 '{blockName}'。\n");
+                            return;
+                        }
                         blockId = bt2[blockName];
                         tr2.Commit();
                     }
@@ -119,7 +180,7 @@ namespace XYDSignTool
                                     using (AttributeReference attRef = new AttributeReference())
                                     {
                                         attRef.SetAttributeFromBlock(attDef, br.BlockTransform);
-                                        attRef.TextString = ResolveAttributeValue(blockName, attDef, libraryBlock);
+                                        attRef.TextString = ResolveAttributeValue(blockName, attDef, attributeData);
                                         br.AttributeCollection.AppendAttribute(attRef);
                                         tr3.AddNewlyCreatedDBObject(attRef, true);
                                     }

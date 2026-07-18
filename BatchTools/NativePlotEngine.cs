@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
@@ -67,10 +68,72 @@ namespace XYDSignTool
 
         public static string TryMatchMedia(string requestedSize, List<MediaInfo> mediaList)
         {
-            if (mediaList == null || mediaList.Count == 0) return null;
-            foreach (var m in mediaList) { if (m.LocalName.Equals(requestedSize, StringComparison.OrdinalIgnoreCase) || m.CanonicalName.Equals(requestedSize, StringComparison.OrdinalIgnoreCase)) return m.CanonicalName; }
-            foreach (var m in mediaList) { if (m.LocalName.ToUpper().Contains(requestedSize.ToUpper()) || m.CanonicalName.ToUpper().Contains(requestedSize.ToUpper())) return m.CanonicalName; }
+            if (string.IsNullOrWhiteSpace(requestedSize) || mediaList == null || mediaList.Count == 0) return null;
+
+            string requested = requestedSize.Trim();
+            foreach (MediaInfo media in mediaList)
+            {
+                if (EqualsIgnoreCase(media.LocalName, requested) || EqualsIgnoreCase(media.CanonicalName, requested))
+                    return media.CanonicalName;
+            }
+
+            if (requested.Equals("A4", StringComparison.OrdinalIgnoreCase))
+            {
+                MediaInfo match = FindA4Media(mediaList, true, true) ??
+                                  FindA4Media(mediaList, true, false) ??
+                                  FindA4Media(mediaList, false, true);
+                if (match != null) return match.CanonicalName;
+                return null;
+            }
+
+            foreach (MediaInfo media in mediaList)
+            {
+                if (ContainsPaperToken(media.LocalName, requested) || ContainsPaperToken(media.CanonicalName, requested))
+                    return media.CanonicalName;
+            }
+
+            foreach (MediaInfo media in mediaList)
+            {
+                if (ContainsIgnoreCase(media.LocalName, requested) || ContainsIgnoreCase(media.CanonicalName, requested))
+                    return media.CanonicalName;
+            }
             return null;
+        }
+
+        private static MediaInfo FindA4Media(List<MediaInfo> mediaList, bool requireA4Token, bool requireDimensions)
+        {
+            foreach (MediaInfo media in mediaList)
+            {
+                string combined = (media.LocalName ?? "") + " " + (media.CanonicalName ?? "");
+                if (requireA4Token && !ContainsPaperToken(combined, "A4")) continue;
+                if (requireDimensions && !ContainsA4Dimensions(combined)) continue;
+                return media;
+            }
+            return null;
+        }
+
+        private static bool ContainsA4Dimensions(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return false;
+            return Regex.IsMatch(value, @"(?i)(?<!\d)210(?:[\.,]0+)?\D{0,12}297(?:[\.,]0+)?(?!\d)") ||
+                   Regex.IsMatch(value, @"(?i)(?<!\d)297(?:[\.,]0+)?\D{0,12}210(?:[\.,]0+)?(?!\d)");
+        }
+
+        private static bool ContainsPaperToken(string value, string requested)
+        {
+            if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(requested)) return false;
+            string pattern = @"(?i)(?<![A-Z0-9])" + Regex.Escape(requested.Trim()) + @"(?![A-Z0-9+\.])";
+            return Regex.IsMatch(value, pattern);
+        }
+
+        private static bool EqualsIgnoreCase(string value, string expected)
+        {
+            return !string.IsNullOrEmpty(value) && value.Equals(expected, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool ContainsIgnoreCase(string value, string expected)
+        {
+            return !string.IsNullOrEmpty(value) && value.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         public static bool PlotToPdf(Database db, TitleBlockModel block, string outputPath, string printerName, string canonicalMediaName, string styleSheet)

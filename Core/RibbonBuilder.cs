@@ -19,6 +19,7 @@ namespace XYDSignTool
             };
 
         private bool _isLispLoaded = false;
+        private bool _customLibrariesInitialized = false;
 
         public void Initialize()
         {
@@ -38,6 +39,13 @@ namespace XYDSignTool
         // ==================== ★ 守护进程 (兼容天正的核心) ★ ====================
         private void Application_Idle_Watchdog(object sender, EventArgs e)
         {
+            if (!_customLibrariesInitialized)
+            {
+                try { CustomBlockLibraryStore.RefreshSavedLibraries(); }
+                catch { }
+                _customLibrariesInitialized = true;
+            }
+
             // 1. 静默加载 Lisp (只执行一次)
             if (!_isLispLoaded)
             {
@@ -124,7 +132,9 @@ namespace XYDSignTool
             dropFrame.Items.Add(CreateButton("A2+1.75 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2+1.75", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A2+2 横向图框", "XYD_INS:XYD-TITLEBLOCK_A2+2", RibbonItemSize.Large, "frame"));
             dropFrame.Items.Add(CreateButton("A3 横向图框", "XYD_INS:XYD-TITLEBLOCK_A3", RibbonItemSize.Large, "frame"));
+            dropFrame.Items.Add(CreateButton("A4 图框", "XYD_INS:XYD-TITLEBLOCK_A4", RibbonItemSize.Large, "frame"));
             panelLib.Items.Add(dropFrame);
+            panelLib.Items.Add(CreateButton("添加自定义图块", "XYD_CUSTOMBLOCKS ", RibbonItemSize.Large, "block"));
 
             // ------------------------------------------------------------
             RibbonPanelSource panelSign = CreatePanel(tab, "标识系统算量");
@@ -251,6 +261,8 @@ namespace XYDSignTool
                     return "提取图框信息，生成、导入或导出图纸目录。";
                 case "XYD_TITLEBLOCK_RULES":
                     return "配置用户自定义图框块名前缀和属性字段映射。";
+                case "XYD_CUSTOMBLOCKS":
+                    return "管理多个自定义 DWG 图库并插入其中的命名图块。";
                 case "XYD_COUNTBLK":
                     return "选择一个图块样本，统计同名图块使用次数。";
                 case "XYD_DYNLEN":

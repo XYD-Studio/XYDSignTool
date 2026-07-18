@@ -10,6 +10,18 @@ namespace XYDSignTool
     {
         public static List<TitleBlockModel> ScanDatabase(Database db, string docName)
         {
+            int ignoredObjectCount;
+            return ScanDatabase(db, docName, false, out ignoredObjectCount);
+        }
+
+        public static List<TitleBlockModel> ScanDatabase(Database db, string docName, out int ignoredObjectCount)
+        {
+            return ScanDatabase(db, docName, false, out ignoredObjectCount);
+        }
+
+        public static List<TitleBlockModel> ScanDatabase(Database db, string docName, bool includeCover, out int ignoredObjectCount)
+        {
+            ignoredObjectCount = 0;
             List<TitleBlockModel> list = new List<TitleBlockModel>();
             List<TitleBlockRecognitionRule> rules = TitleBlockRecognitionSettings.GetActiveRules();
             using (Transaction tr = db.TransactionManager.StartTransaction())
@@ -22,16 +34,29 @@ namespace XYDSignTool
 
                     foreach (ObjectId id in btr)
                     {
-                        BlockReference br = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
-                        if (br != null)
+                        try
                         {
-                            string effName = GetEffectiveName(br, tr);
+                            BlockReference br = tr.GetObject(id, OpenMode.ForRead, false) as BlockReference;
+                            if (br == null) continue;
+
+                            string effName;
+                            if (!TryGetEffectiveName(br, tr, out effName))
+                            {
+                                ignoredObjectCount++;
+                                continue;
+                            }
+
                             TitleBlockRecognitionRule rule = FindMatchingRule(effName, rules);
                             if (rule != null)
                             {
-                                var model = BuildModel(br, tr, docName, layout.LayoutName, layout.ModelType, effName, rule);
+                                var model = BuildModel(br, tr, docName, layout.LayoutName, layout.ModelType, effName, rule, includeCover);
                                 if (model != null) list.Add(model);
                             }
+                        }
+                        catch
+                        {
+                            // A malformed/proxy block must not abort the scan of the remaining drawing.
+                            ignoredObjectCount++;
                         }
                     }
                 }
@@ -42,6 +67,18 @@ namespace XYDSignTool
 
         public static List<TitleBlockModel> ScanExternalDwg(string dwgPath)
         {
+            int ignoredObjectCount;
+            return ScanExternalDwg(dwgPath, false, out ignoredObjectCount);
+        }
+
+        public static List<TitleBlockModel> ScanExternalDwg(string dwgPath, out int ignoredObjectCount)
+        {
+            return ScanExternalDwg(dwgPath, false, out ignoredObjectCount);
+        }
+
+        public static List<TitleBlockModel> ScanExternalDwg(string dwgPath, bool includeCover, out int ignoredObjectCount)
+        {
+            ignoredObjectCount = 0;
             List<TitleBlockModel> results = new List<TitleBlockModel>();
             if (!File.Exists(dwgPath)) return results;
 
@@ -50,7 +87,7 @@ namespace XYDSignTool
                 try
                 {
                     extDb.ReadDwgFile(dwgPath, FileShare.Read, true, "");
-                    results.AddRange(ScanDatabase(extDb, Path.GetFileName(dwgPath)));
+                    results.AddRange(ScanDatabase(extDb, Path.GetFileName(dwgPath), includeCover, out ignoredObjectCount));
                 }
                 catch { }
             }
@@ -66,12 +103,11 @@ namespace XYDSignTool
             return null;
         }
 
-        private static TitleBlockModel BuildModel(BlockReference br, Transaction tr, string docName, string layoutName, bool isModelSpace, string effectiveName, TitleBlockRecognitionRule rule)
+        private static TitleBlockModel BuildModel(BlockReference br, Transaction tr, string docName, string layoutName, bool isModelSpace, string effectiveName, TitleBlockRecognitionRule rule, bool includeCover)
         {
             var attrs = GetAttributes(br, tr);
             string title = GetMappedValue(attrs, rule.DrawTitleTags);
-            bool isXydCoverTitleBlock = effectiveName.Equals("XYD-TITLEBLOCK_A2封面", StringComparison.OrdinalIgnoreCase);
-            if (string.IsNullOrEmpty(title) || (title.Contains("封面") && !isXydCoverTitleBlock)) return null;
+            if (string.IsNullOrEmpty(title) || (!includeCover && title.Contains("封面"))) return null;
 
             string pageSize = GetMappedValue(attrs, rule.PageSizeTags);
             if (string.IsNullOrWhiteSpace(pageSize) && rule.ExtractPageSizeFromBlockName)
@@ -181,22 +217,53 @@ namespace XYDSignTool
         private static Dictionary<string, string> GetAttributes(BlockReference br, Transaction tr)
         {
             var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (ObjectId attId in br.AttributeCollection)
+            try
             {
-                AttributeReference attRef = tr.GetObject(attId, OpenMode.ForRead) as AttributeReference;
-                if (attRef != null) dict[attRef.Tag] = attRef.TextString;
+                foreach (ObjectId attId in br.AttributeCollection)
+                {
+                    try
+                    {
+                        AttributeReference attRef = tr.GetObject(attId, OpenMode.ForRead, false) as AttributeReference;
+                        if (attRef != null) dict[attRef.Tag] = attRef.TextString;
+                    }
+                    catch { }
+                }
             }
+            catch { }
             return dict;
         }
 
-        private static string GetEffectiveName(BlockReference br, Transaction tr)
+        private static bool TryGetEffectiveName(BlockReference br, Transaction tr, out string name)
         {
-            if (br.IsDynamicBlock)
+            name = "";
+            if (br == null) return false;
+
+            ObjectId blockDefinitionId = ObjectId.Null;
+            try
             {
-                BlockTableRecord btr = tr.GetObject(br.DynamicBlockTableRecord, OpenMode.ForRead) as BlockTableRecord;
-                return btr.Name;
+                if (br.IsDynamicBlock) blockDefinitionId = br.DynamicBlockTableRecord;
             }
-            return br.Name;
+            catch { }
+
+            if (blockDefinitionId.IsNull)
+            {
+                try { blockDefinitionId = br.BlockTableRecord; }
+                catch { }
+            }
+
+            if (blockDefinitionId.IsNull) return false;
+
+            try
+            {
+                BlockTableRecord btr = tr.GetObject(blockDefinitionId, OpenMode.ForRead, false) as BlockTableRecord;
+                if (btr == null || string.IsNullOrWhiteSpace(btr.Name)) return false;
+                name = btr.Name;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

@@ -59,7 +59,7 @@ namespace XYDSignTool
             if (doc == null) return;
             Editor ed = doc.Editor;
 
-            var allBlocks = GatherTitleBlocks(ed, out _);
+            var allBlocks = GatherTitleBlocks(ed, false, out _);
             if (allBlocks == null || allBlocks.Count == 0) return;
 
             DirectoryEditorWindow dirWin = new DirectoryEditorWindow(allBlocks, "目录中心");
@@ -102,7 +102,7 @@ namespace XYDSignTool
             if (activeDoc == null) return;
             Editor ed = activeDoc.Editor;
 
-            var allBlocks = GatherTitleBlocks(ed, out List<string> externalFilesToOpen);
+            var allBlocks = GatherTitleBlocks(ed, true, out List<string> externalFilesToOpen);
             if (allBlocks == null || allBlocks.Count == 0) return;
             if (!ValidateBatchPrintBlocks(allBlocks)) return;
 
@@ -189,15 +189,13 @@ namespace XYDSignTool
 
         // ==================== 辅助私有方法 ====================
 
-        private List<TitleBlockModel> GatherTitleBlocks(Editor ed) { return GatherTitleBlocks(ed, out _); }
-
-        private List<TitleBlockModel> GatherTitleBlocks(Editor ed, out List<string> externalFiles)
+        private List<TitleBlockModel> GatherTitleBlocks(Editor ed, bool includeCover, out List<string> externalFiles)
         {
             externalFiles = new List<string>();
             List<TitleBlockModel> allData = new List<TitleBlockModel>();
 
             ed.WriteMessage("\n正在扫描当前激活图纸...");
-            allData.AddRange(TitleBlockExtractor.ScanDatabase(Application.DocumentManager.MdiActiveDocument.Database, Application.DocumentManager.MdiActiveDocument.Name));
+            AddTitleBlocksFromDatabase(allData, Application.DocumentManager.MdiActiveDocument.Database, Application.DocumentManager.MdiActiveDocument.Name, includeCover, ed);
 
             while (true)
             {
@@ -215,8 +213,17 @@ namespace XYDSignTool
                         foreach (string fileName in ofd.FileNames)
                         {
                             Document openDoc = FindOpenedDocument(fileName);
-                            if (openDoc != null) { allData.AddRange(TitleBlockExtractor.ScanDatabase(openDoc.Database, openDoc.Name)); }
-                            else { allData.AddRange(TitleBlockExtractor.ScanExternalDwg(fileName)); externalFiles.Add(fileName); }
+                            if (openDoc != null)
+                            {
+                                AddTitleBlocksFromDatabase(allData, openDoc.Database, openDoc.Name, includeCover, ed);
+                            }
+                            else
+                            {
+                                int ignoredObjectCount;
+                                allData.AddRange(TitleBlockExtractor.ScanExternalDwg(fileName, includeCover, out ignoredObjectCount));
+                                ReportIgnoredObjects(ed, fileName, ignoredObjectCount);
+                                externalFiles.Add(fileName);
+                            }
                         }
                     }
                 }
@@ -225,7 +232,7 @@ namespace XYDSignTool
                     foreach (Document openedDoc in Application.DocumentManager)
                     {
                         if (openedDoc != Application.DocumentManager.MdiActiveDocument)
-                            allData.AddRange(TitleBlockExtractor.ScanDatabase(openedDoc.Database, openedDoc.Name));
+                            AddTitleBlocksFromDatabase(allData, openedDoc.Database, openedDoc.Name, includeCover, ed);
                     }
                 }
             }
@@ -233,6 +240,21 @@ namespace XYDSignTool
             if (allData.Count == 0) { ed.WriteMessage("\n未找到任何图框数据。"); return null; }
             allData.Sort((a, b) => string.Compare(a.DrawNum, b.DrawNum, StringComparison.OrdinalIgnoreCase));
             return allData;
+        }
+
+        private void AddTitleBlocksFromDatabase(List<TitleBlockModel> allData, Database db, string documentName, bool includeCover, Editor ed)
+        {
+            int ignoredObjectCount;
+            allData.AddRange(TitleBlockExtractor.ScanDatabase(db, documentName, includeCover, out ignoredObjectCount));
+            ReportIgnoredObjects(ed, documentName, ignoredObjectCount);
+        }
+
+        private void ReportIgnoredObjects(Editor ed, string documentName, int ignoredObjectCount)
+        {
+            if (ignoredObjectCount <= 0) return;
+
+            string displayName = Path.GetFileName(documentName);
+            ed.WriteMessage($"\n[警告] {displayName} 中有 {ignoredObjectCount} 个异常块对象已跳过。建议对该图执行 AUDIT（核查）并修复错误。");
         }
 
         private Document FindOpenedDocument(string path)
