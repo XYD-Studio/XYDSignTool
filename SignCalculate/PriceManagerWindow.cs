@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -18,6 +19,8 @@ namespace XYDSignTool
     {
         private double _price;
         public string Tech { get; set; }
+        public bool IsUsed { get; set; }
+        public string UsageText { get { return IsUsed ? "本次使用" : "本次未使用"; } }
 
         public double Price
         {
@@ -41,6 +44,7 @@ namespace XYDSignTool
     /// </summary>
     public class PriceManagerWindow : Window
     {
+        private readonly HashSet<string> _usedTechs;
         private ListView _listView;
         private TextBlock _txtSelectedTech;
         private TextBox _edPrice;
@@ -54,12 +58,25 @@ namespace XYDSignTool
         public ObservableCollection<PriceItem> PriceItems { get; private set; }
         public bool IsConfirmed { get; private set; }
 
-        public PriceManagerWindow(Dictionary<string, double> currentPrices)
+        public PriceManagerWindow(Dictionary<string, double> currentPrices, IEnumerable<string> usedTechs)
         {
+            _usedTechs = new HashSet<string>(
+                (usedTechs ?? Enumerable.Empty<string>())
+                    .Select(value => (value ?? "").Trim())
+                    .Where(value => value.Length > 0),
+                StringComparer.OrdinalIgnoreCase);
             PriceItems = new ObservableCollection<PriceItem>();
-            foreach (var kvp in currentPrices)
+            foreach (var kvp in (currentPrices ?? new Dictionary<string, double>())
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
             {
-                PriceItems.Add(new PriceItem { Tech = kvp.Key, Price = kvp.Value });
+                string tech = (kvp.Key ?? "").Trim();
+                if (tech.Length == 0) continue;
+                PriceItems.Add(new PriceItem
+                {
+                    Tech = tech,
+                    Price = kvp.Value,
+                    IsUsed = _usedTechs.Contains(tech)
+                });
             }
 
             IsConfirmed = false;
@@ -70,7 +87,7 @@ namespace XYDSignTool
         private void InitializeComponent()
         {
             this.Title = "综合单价管理器 - XYD";
-            this.Width = 500;
+            this.Width = 620;
             this.Height = 500;
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             this.ResizeMode = ResizeMode.NoResize;
@@ -99,11 +116,18 @@ namespace XYDSignTool
             GridViewColumn colPrice = new GridViewColumn
             {
                 Header = "综合单价 (元)",
-                Width = 140,
+                Width = 130,
                 DisplayMemberBinding = new Binding("Price") { StringFormat = "F2" } // 保持 2 位小数
+            };
+            GridViewColumn colUsage = new GridViewColumn
+            {
+                Header = "使用情况",
+                Width = 110,
+                DisplayMemberBinding = new Binding("UsageText")
             };
             gridView.Columns.Add(colTech);
             gridView.Columns.Add(colPrice);
+            gridView.Columns.Add(colUsage);
             _listView.View = gridView;
             _listView.ItemsSource = PriceItems;
 
@@ -264,6 +288,7 @@ namespace XYDSignTool
                             if (parts.Length >= 2 && double.TryParse(parts[1], out double price))
                             {
                                 string techName = parts[0].Trim();
+                                if (techName.Length == 0) continue;
                                 // 查找当前列表是否已存在该工艺
                                 PriceItem existItem = null;
                                 foreach (var item in PriceItems)
@@ -278,7 +303,12 @@ namespace XYDSignTool
                                 if (existItem != null)
                                     existItem.Price = price; // 更新
                                 else
-                                    PriceItems.Add(new PriceItem { Tech = techName, Price = price }); // 追加
+                                    PriceItems.Add(new PriceItem
+                                    {
+                                        Tech = techName,
+                                        Price = price,
+                                        IsUsed = _usedTechs.Contains(techName)
+                                    }); // 追加
                             }
                         }
                     }

@@ -31,8 +31,8 @@ namespace XYDSignTool
         private void InitializeComponent()
         {
             this.Title = "标识图纸属性编辑器 - XYD (双击格子即可编辑，仅限当前图纸)";
-            this.Width = 980;
-            this.Height = 550;
+            this.Width = Math.Min(1320, SystemParameters.WorkArea.Width - 40);
+            this.Height = Math.Min(550, SystemParameters.WorkArea.Height - 80);
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             this.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
             this.ShowInTaskbar = false;
@@ -67,6 +67,15 @@ namespace XYDSignTool
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "重量", Binding = new Binding("Weight") { Mode = BindingMode.TwoWay }, Width = 60 });
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "数量", Binding = new Binding("Qty") { Mode = BindingMode.TwoWay }, Width = 40 });
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "工艺 (XYD-TECH)", Binding = new Binding("Tech") { Mode = BindingMode.TwoWay }, Width = 150 });
+            _dataGrid.Columns.Add(new DataGridTextColumn { Header = "用电量 (XYD-POWER)", Binding = new Binding("Power") { Mode = BindingMode.TwoWay }, Width = 110 });
+            _dataGrid.Columns.Add(new DataGridTextColumn { Header = "备注 (XYD-REMARKS)", Binding = new Binding("Remarks") { Mode = BindingMode.TwoWay }, Width = 190 });
+            _dataGrid.Columns.Add(new DataGridComboBoxColumn
+            {
+                Header = "是否计数",
+                ItemsSource = new[] { "是", "否" },
+                SelectedItemBinding = new Binding("IsCount") { Mode = BindingMode.TwoWay },
+                Width = 80
+            });
 
             Grid.SetRow(_dataGrid, 0);
             mainGrid.Children.Add(_dataGrid);
@@ -74,7 +83,13 @@ namespace XYDSignTool
             // 3. 创建底部按钮
             StackPanel btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 15, 0, 0) };
             _btnOk = new Button { Content = "保存并回写图纸属性", Width = 150, Height = 28, Margin = new Thickness(0, 0, 12, 0), IsDefault = true };
-            _btnOk.Click += (s, e) => { IsConfirmed = true; this.Close(); };
+            _btnOk.Click += (s, e) =>
+            {
+                _dataGrid.CommitEdit(DataGridEditingUnit.Cell, true);
+                _dataGrid.CommitEdit(DataGridEditingUnit.Row, true);
+                IsConfirmed = true;
+                this.Close();
+            };
             _btnCancel = new Button { Content = "取消编辑", Width = 80, Height = 28, IsCancel = true };
             _btnCancel.Click += (s, e) => { this.Close(); };
 

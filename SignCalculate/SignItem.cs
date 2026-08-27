@@ -21,6 +21,8 @@ namespace XYDSignTool
         public int Qty { get; set; }
         public string Tech { get; set; }
         public string Power { get; set; }
+        public string Remarks { get; set; }
+        public string IsCount { get; set; }
 
         public int CategoryId { get; set; }
         public double BasePrice { get; set; }

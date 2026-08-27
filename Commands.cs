@@ -29,7 +29,7 @@ namespace XYDSignTool
             if (doc == null) return;
             Editor ed = doc.Editor;
 
-            var data = GatherAndSortData(ed, out bool includeThickness, out List<string> areaOrder);
+            var data = GatherAndSortData(ed, out List<string> areaOrder);
             if (data == null || data.Count == 0) return;
 
             PromptPointResult ppr = ed.GetPoint("\n请指定清单表格的左上角插入点: ");
@@ -37,7 +37,7 @@ namespace XYDSignTool
             {
                 using (DocumentLock loc = doc.LockDocument())
                 {
-                    CadTableGenerator.CreateTable(doc.Database, ppr.Value, data, includeThickness);
+                    CadTableGenerator.CreateTable(doc.Database, ppr.Value, data, true);
                 }
                 ed.WriteMessage("\n[成功] CAD 图纸内表格生成完毕！");
             }
@@ -51,7 +51,7 @@ namespace XYDSignTool
             if (doc == null) return;
             Editor ed = doc.Editor;
 
-            var data = GatherAndSortData(ed, out bool includeThickness, out List<string> areaOrder);
+            var data = GatherAndSortData(ed, out List<string> areaOrder);
             if (data == null || data.Count == 0) return;
 
             SaveFileDialog sfd = new SaveFileDialog
@@ -78,7 +78,7 @@ namespace XYDSignTool
                             sw.WriteLine($"    \"TYPE\": \"{SafeJson(item.InstallType)}\",");
                             sw.WriteLine($"    \"WIDTH\": {item.Width},");
                             sw.WriteLine($"    \"HEIGHT\": {item.Height},");
-                            if (includeThickness) sw.WriteLine($"    \"THICKNESS\": \"{SafeJson(item.Thickness)}\",");
+                            sw.WriteLine($"    \"THICKNESS\": \"{SafeJson(item.Thickness)}\",");
                             sw.WriteLine($"    \"WEIGHT\": \"{SafeJson(item.Weight)}\",");
                             sw.WriteLine($"    \"QTY\": {item.Qty},");
                             sw.WriteLine($"    \"TECH\": \"{SafeJson(item.Tech)}\",");
@@ -113,7 +113,7 @@ namespace XYDSignTool
             if (doc == null) return;
             Editor ed = doc.Editor;
 
-            var data = GatherAndSortData(ed, out bool includeThickness, out List<string> areaOrder);
+            var data = GatherAndSortData(ed, out List<string> areaOrder);
             if (data == null || data.Count == 0) return;
 
             SaveFileDialog sfd = new SaveFileDialog
@@ -127,7 +127,7 @@ namespace XYDSignTool
             {
                 try
                 {
-                    ExcelExporter.ExportNormalReport(data, areaOrder, sfd.FileName, includeThickness);
+                    ExcelExporter.ExportNormalReport(data, areaOrder, sfd.FileName, true);
                     ed.WriteMessage($"\n[成功] 清单已导出至:\n{sfd.FileName}\n");
                 }
                 catch (System.Exception ex)
@@ -145,24 +145,27 @@ namespace XYDSignTool
             if (doc == null) return;
             Editor ed = doc.Editor;
 
-            var data = GatherAndSortData(ed, out bool includeThickness, out List<string> areaOrder);
+            var data = GatherAndSortData(ed, out List<string> areaOrder);
             if (data == null || data.Count == 0) return;
 
             // 提取工艺并弹出单价管理器
-            HashSet<string> techs = new HashSet<string>();
+            List<string> techs = new List<string>();
+            HashSet<string> seenTechs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var item in data)
             {
-                if (!string.IsNullOrEmpty(item.Tech)) techs.Add(item.Tech);
+                string tech = NormalizeTechName(item.Tech);
+                item.Tech = tech;
+                if (tech.Length > 0 && seenTechs.Add(tech)) techs.Add(tech);
             }
 
             Dictionary<string, double> priceDict = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in RibbonBuilder.PriceDictCache) priceDict[p.Key] = p.Value;
             foreach (var t in techs)
             {
-                if (!priceDict.ContainsKey(t)) priceDict[t] = 0.0;
+                double price;
+                priceDict[t] = RibbonBuilder.PriceDictCache.TryGetValue(t, out price) ? price : 0.0;
             }
 
-            PriceManagerWindow pmWin = new PriceManagerWindow(priceDict);
+            PriceManagerWindow pmWin = new PriceManagerWindow(priceDict, techs);
             Application.ShowModalWindow(pmWin);
 
             if (!pmWin.IsConfirmed)
@@ -173,13 +176,17 @@ namespace XYDSignTool
 
             foreach (var item in pmWin.PriceItems)
             {
-                RibbonBuilder.PriceDictCache[item.Tech] = item.Price;
-                priceDict[item.Tech] = item.Price;
+                string tech = NormalizeTechName(item.Tech);
+                if (tech.Length == 0) continue;
+                RibbonBuilder.PriceDictCache[tech] = item.Price;
+                priceDict[tech] = item.Price;
             }
 
             foreach (var item in data)
             {
-                item.BasePrice = priceDict.ContainsKey(item.Tech) ? priceDict[item.Tech] : 0.0;
+                double price;
+                string tech = NormalizeTechName(item.Tech);
+                item.BasePrice = priceDict.TryGetValue(tech, out price) ? price : 0.0;
             }
 
             SaveFileDialog sfd = new SaveFileDialog
@@ -193,7 +200,7 @@ namespace XYDSignTool
             {
                 try
                 {
-                    ExcelExporter.ExportCostReport(data, areaOrder, sfd.FileName, includeThickness);
+                    ExcelExporter.ExportCostReport(data, areaOrder, sfd.FileName, true);
                     ed.WriteMessage($"\n[成功] 完整造价报表已成功生成并保存至:\n{sfd.FileName}\n");
                 }
                 catch (System.Exception ex)
@@ -212,7 +219,7 @@ namespace XYDSignTool
             Editor ed = doc.Editor;
 
             ed.WriteMessage("\n正在扫描当前图纸...");
-            List<SignItem> currentData = SignExtractor.ExtractFromDatabase(doc.Database);
+            List<SignItem> currentData = SignExtractor.ExtractFromDatabase(doc.Database, true);
             if (currentData.Count == 0)
             {
                 ed.WriteMessage("\n当前图纸未找到可编辑的标识属性块。");
@@ -246,6 +253,9 @@ namespace XYDSignTool
                                 updates["XYD-TYPE"] = item.InstallType;
                                 updates["XYD-TECH"] = item.Tech;
                                 updates["XYD-WEIGHT"] = item.Weight;
+                                updates["XYD-POWER"] = item.Power;
+                                updates["XYD-REMARKS"] = item.Remarks;
+                                updates["--XYDISCOUNT"] = string.Equals(item.IsCount, "否", StringComparison.OrdinalIgnoreCase) ? "否" : "是";
 
                                 string sizeStr = $"{item.Width}*{item.Height}";
                                 if (!string.IsNullOrEmpty(item.Thickness)) sizeStr += $"*{item.Thickness}";
@@ -290,18 +300,9 @@ namespace XYDSignTool
         }
 
         // ==================== 高度聚合的内部提取与排序引擎 ====================
-        private List<SignItem> GatherAndSortData(Editor ed, out bool includeThickness, out List<string> areaOrder)
+        private List<SignItem> GatherAndSortData(Editor ed, out List<string> areaOrder)
         {
             areaOrder = new List<string>();
-            includeThickness = true;
-
-            PromptKeywordOptions pko = new PromptKeywordOptions("\n数据是否包含[厚度]列? [是(Y)/否(N)] <Y>:");
-            pko.Keywords.Add("Y");
-            pko.Keywords.Add("N");
-            pko.Keywords.Default = "Y";
-            PromptResult pr = ed.GetKeywords(pko);
-            if (pr.Status == PromptStatus.Cancel) return null;
-            includeThickness = (pr.Status == PromptStatus.None || pr.StringResult == "Y");
 
             ed.WriteMessage("\n正在扫描当前激活图纸...");
             List<SignItem> allData = SignExtractor.ExtractFromDatabase(Application.DocumentManager.MdiActiveDocument.Database);
@@ -405,6 +406,11 @@ namespace XYDSignTool
                 if (!list.Contains(item.Area)) list.Add(item.Area);
             }
             return list;
+        }
+
+        private static string NormalizeTechName(string value)
+        {
+            return (value ?? "").Trim();
         }
 
         private Document FindOpenedDocument(string path)

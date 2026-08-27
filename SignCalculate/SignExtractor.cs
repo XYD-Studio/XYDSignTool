@@ -11,13 +11,18 @@ namespace XYDSignTool
     {
         public static List<SignItem> ExtractFromDatabase(Database db)
         {
+            return ExtractFromDatabase(db, false);
+        }
+
+        public static List<SignItem> ExtractFromDatabase(Database db, bool includeExcluded)
+        {
             List<SignItem> results = new List<SignItem>();
             using (Transaction tr = db.TransactionManager.StartTransaction())
             {
                 BlockTable bt = tr.GetObject(db.BlockTableId, OpenMode.ForRead) as BlockTable;
                 BlockTableRecord ms = tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead) as BlockTableRecord;
 
-                results.AddRange(ExtractFromBlockTableRecord(ms, tr));
+                results.AddRange(ExtractFromBlockTableRecord(ms, tr, includeExcluded));
                 tr.Commit();
             }
             return results;
@@ -100,12 +105,14 @@ namespace XYDSignTool
                 Weight = GetDictValue(raw, "WEIGHT"),
                 Qty = int.TryParse(GetDictValue(raw, "QTY"), out int q) ? q : 1,
                 Tech = GetDictValue(raw, "TECH"),
-                Power = GetDictValue(raw, "POWER")
+                Power = GetDictValue(raw, "POWER"),
+                Remarks = GetDictValue(raw, "REMARKS"),
+                IsCount = NormalizeCountValue(GetDictValue(raw, "ISCOUNT"))
             };
             return item;
         }
 
-        private static List<SignItem> ExtractFromBlockTableRecord(BlockTableRecord btr, Transaction tr)
+        private static List<SignItem> ExtractFromBlockTableRecord(BlockTableRecord btr, Transaction tr, bool includeExcluded)
         {
             List<SignItem> items = new List<SignItem>();
             foreach (ObjectId id in btr)
@@ -119,7 +126,7 @@ namespace XYDSignTool
                     if (blockName.StartsWith("XYD-SIGNBLOCK_", StringComparison.OrdinalIgnoreCase))
                     {
                         var attrDict = GetAttributes(br, tr);
-                        if (attrDict.ContainsKey("--XYDISCOUNT") && attrDict["--XYDISCOUNT"] == "否") continue;
+                        if (!includeExcluded && attrDict.ContainsKey("--XYDISCOUNT") && attrDict["--XYDISCOUNT"] == "否") continue;
 
                         string areaName = attrDict.ContainsKey("--XYDAREA") ? attrDict["--XYDAREA"] : "未分配区域";
                         if (string.IsNullOrEmpty(areaName)) areaName = "未分配区域";
@@ -153,7 +160,9 @@ namespace XYDSignTool
                 InstallType = GetDictValue(attrs, "XYD-TYPE"),
                 Tech = GetDictValue(attrs, "XYD-TECH"),
                 Power = GetDictValue(attrs, "XYD-POWER"),
-                Weight = GetDictValue(attrs, "XYD-WEIGHT")
+                Weight = GetDictValue(attrs, "XYD-WEIGHT"),
+                Remarks = GetDictValue(attrs, "XYD-REMARKS"),
+                IsCount = NormalizeCountValue(GetDictValue(attrs, "--XYDISCOUNT"))
             };
 
             string name = GetDictValue(attrs, "--XYDNAME");
@@ -251,6 +260,11 @@ namespace XYDSignTool
         private static string GetDictValue(Dictionary<string, string> dict, string key)
         {
             return dict.ContainsKey(key) ? dict[key] : "";
+        }
+
+        private static string NormalizeCountValue(string value)
+        {
+            return string.Equals((value ?? "").Trim(), "否", StringComparison.OrdinalIgnoreCase) ? "否" : "是";
         }
     }
 }

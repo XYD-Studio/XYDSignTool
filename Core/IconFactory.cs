@@ -53,6 +53,9 @@ namespace XYDSignTool
                     case "spec": DrawSpecIcon(dc); break;
                     case "linelen": DrawLineLengthIcon(dc); break;
                     case "findtext": DrawFindTextIcon(dc); break;
+                    case "replacetext": DrawReplaceTextIcon(dc); break;
+                    case "findsame": DrawFindSameIcon(dc); break;
+                    case "autonumber": DrawAutoNumberIcon(dc); break;
                     case "rotate": DrawRotateIcon(dc); break;
                     case "embedimage": DrawEmbedImageIcon(dc); break;
                     case "help": DrawHelpIcon(dc); break;
@@ -169,6 +172,36 @@ namespace XYDSignTool
             DrawListLines(dc, 9.2, 11, 8, 4, InkMuted);
             dc.DrawEllipse(null, PenOf(Blue, 2.0), P(21.6, 20.5), 4.3, 4.3);
             dc.DrawLine(RoundPen(Blue, 2.0), P(24.7, 23.7), P(28.2, 27.2));
+        }
+
+        private static void DrawReplaceTextIcon(DrawingContext dc)
+        {
+            DrawPage(dc, 6.0, 5.5, 14.4, 20.0, true);
+            DrawListLines(dc, 9.0, 10.5, 8.2, 3, InkMuted);
+            DrawArrow(dc, P(16.5, 15.0), P(26.0, 15.0), Cyan, 1.8);
+            DrawArrow(dc, P(26.0, 22.0), P(16.5, 22.0), Orange, 1.8);
+        }
+
+        private static void DrawFindSameIcon(DrawingContext dc)
+        {
+            DrawMiniCube(dc, 5.8, 7.0, Blue);
+            DrawMiniCube(dc, 5.8, 17.0, Cyan);
+            DrawMiniCube(dc, 15.8, 7.0, Blue);
+            dc.DrawEllipse(null, PenOf(Yellow, 1.9), P(21.5, 21.0), 4.3, 4.3);
+            dc.DrawLine(RoundPen(Yellow, 1.9), P(24.6, 24.2), P(28.0, 27.4));
+        }
+
+        private static void DrawAutoNumberIcon(DrawingContext dc)
+        {
+            DrawMiniCube(dc, 5.5, 6.5, Blue);
+            DrawMiniCube(dc, 5.5, 17.2, Cyan);
+            DrawMiniCube(dc, 16.2, 17.2, Green);
+            dc.DrawLine(RoundPen(Yellow, 1.4), P(12.0, 10.4), P(21.0, 10.4));
+            dc.DrawLine(RoundPen(Yellow, 1.4), P(21.0, 10.4), P(21.0, 15.0));
+            dc.DrawLine(RoundPen(Yellow, 1.4), P(21.0, 15.0), P(12.0, 15.0));
+            dc.DrawEllipse(BrushOf(PanelFill), PenOf(Orange, 1.2), P(24.2, 8.0), 4.2, 4.2);
+            dc.DrawLine(RoundPen(Paper, 1.7), P(24.2, 5.8), P(24.2, 10.2));
+            dc.DrawLine(RoundPen(Paper, 1.7), P(22.8, 7.0), P(24.2, 5.8));
         }
 
         private static void DrawRotateIcon(DrawingContext dc)

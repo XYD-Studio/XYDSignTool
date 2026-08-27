@@ -160,6 +160,9 @@ namespace XYDSignTool
             panelStat.Items.Add(CreateButton("规格统计", "XYD_DYNSPEC ", RibbonItemSize.Large, "spec"));
             panelStat.Items.Add(CreateButton("线段总长", "XYD_LINELEN ", RibbonItemSize.Large, "linelen"));
             panelStat.Items.Add(CreateButton("批量查字段", "XYD_FINDTEXT ", RibbonItemSize.Large, "findtext"));
+            panelStat.Items.Add(CreateButton("批量文本替换", "XYD_REPLACETEXT ", RibbonItemSize.Large, "replacetext"));
+            panelStat.Items.Add(CreateButton("查找相同", "XYD_FINDSAME ", RibbonItemSize.Large, "findsame"));
+            panelStat.Items.Add(CreateButton("自动排号", "XYD_AUTONUMBER ", RibbonItemSize.Large, "autonumber"));
             panelStat.Items.Add(CreateButton("批量旋转", "XYD_MRO ", RibbonItemSize.Large, "rotate"));
 
             RibbonPanelSource panelImage = CreatePanel(tab, "图片工具");
@@ -250,7 +253,7 @@ namespace XYDSignTool
                 case "XYD_XLS":
                     return "导出当前图纸的普通标识清单。";
                 case "XYD_EDIT":
-                    return "批量查看并编辑当前图纸中的标识属性。";
+                    return "批量编辑标识的尺寸、数量、用电量、备注和是否计数等属性。";
                 case "XYD_JSON":
                     return "导出标识数据 JSON，用于后续复用或外部处理。";
                 case "XYD_BATCHPRINT":
@@ -258,11 +261,11 @@ namespace XYDSignTool
                 case "XYD_BATCHOLE":
                     return "调用外挂 LSP 批量导入图片，结束后自动恢复 CAD 对话框设置。";
                 case "XYD_DIRECTORY":
-                    return "提取图框信息，生成、导入或导出图纸目录。";
+                    return "提取并双向编辑图框属性，生成、导入或导出图纸目录。";
                 case "XYD_TITLEBLOCK_RULES":
                     return "配置用户自定义图框块名前缀和属性字段映射。";
                 case "XYD_CUSTOMBLOCKS":
-                    return "管理多个自定义 DWG 图库并插入其中的命名图块。";
+                    return "管理自定义 DWG 图库、设置显示图块并插入选中图块。";
                 case "XYD_COUNTBLK":
                     return "选择一个图块样本，统计同名图块使用次数。";
                 case "XYD_DYNLEN":
@@ -273,6 +276,12 @@ namespace XYDSignTool
                     return "统计预选或框选的线段、圆弧、多段线等曲线总长度。";
                 case "XYD_FINDTEXT":
                     return "查找文本和块属性字段，统计次数并自动选中匹配对象。";
+                case "XYD_REPLACETEXT":
+                    return "使用多组规则同步替换文字、块属性、标注、引线和表格内容。";
+                case "XYD_FINDSAME":
+                    return "按图层、图块名、线型、颜色等多个属性查找并选中相同对象。";
+                case "XYD_AUTONUMBER":
+                    return "按前后缀、跳号和空间顺序编辑图块属性编号，并支持插号顺延。";
                 case "XYD_MRO":
                     return "将预选或框选对象分别绕各自包围盒中心旋转。";
                 case "XYD_HELP":
@@ -298,6 +307,12 @@ namespace XYDSignTool
                     return "XYD_LINELEN / ZZ";
                 case "XYD_FINDTEXT":
                     return "XYD_FINDTEXT / MCOUNT";
+                case "XYD_REPLACETEXT":
+                    return "XYD_REPLACETEXT";
+                case "XYD_FINDSAME":
+                    return "XYD_FINDSAME";
+                case "XYD_AUTONUMBER":
+                    return "XYD_AUTONUMBER";
                 case "XYD_MRO":
                     return "XYD_MRO / MRO";
                 default:

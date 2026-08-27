@@ -2,10 +2,10 @@
 #define BundleBuildDir "..\Installer\Build\XYDSignTool.bundle"
 #endif
 #ifndef PluginVersion
-#define PluginVersion "1.1.0"
+#define PluginVersion "1.2.0"
 #endif
 #ifndef InstallerVersionLabel
-#define InstallerVersionLabel "V1.1"
+#define InstallerVersionLabel "V1.2"
 #endif
 
 [Setup]

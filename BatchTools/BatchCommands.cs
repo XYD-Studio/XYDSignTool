@@ -90,6 +90,24 @@ namespace XYDSignTool
             dirWin.ImportJsonRequested += () => ImportDirectoryJson(dirWin);
             dirWin.ExportExcelRequested += () => ExportDirectoryExcel(new List<TitleBlockModel>(dirWin.Items), dirWin.FinalColumns);
             dirWin.ExportJsonRequested += () => ExportDirectoryJson(new List<TitleBlockModel>(dirWin.Items), dirWin.FinalColumns);
+            dirWin.WriteBackRequested += () =>
+            {
+                try
+                {
+                    dirWin.Hide();
+                    TitleBlockWriteBackResult result = TitleBlockAttributeWriter.WriteBack(dirWin.Items);
+                    Application.ShowAlertDialog(result.BuildMessage());
+                }
+                catch (System.Exception ex)
+                {
+                    Application.ShowAlertDialog("图框属性回写失败：\n" + ex.Message);
+                }
+                finally
+                {
+                    dirWin.Show();
+                    dirWin.Activate();
+                }
+            };
 
             Application.ShowModalWindow(dirWin);
         }
@@ -433,6 +451,7 @@ namespace XYDSignTool
                     {
                         DocumentName = GetJsonValue(record, "DocumentName", "文件名", "图纸文件", "DWG"),
                         LayoutName = GetJsonValue(record, "LayoutName", "布局", "布局名"),
+                        IsImportedSource = true,
                         DrawNum = GetJsonValue(record, "DrawNum", "DRAWNUM", "DRAWNO", "图号", "编号"),
                         DrawTitle = GetJsonValue(record, "DrawTitle", "DRAWTITLE", "TITLE", "图纸名称", "图名", "名称"),
                         PageSize = GetJsonValue(record, "PageSize", "PAGESIZE", "PAPER", "FORMAT", "SIZE", "图幅", "纸张"),

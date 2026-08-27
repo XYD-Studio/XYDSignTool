@@ -57,10 +57,13 @@ namespace XYDSignTool
             relinkButton.Click += (s, e) => RelinkSelectedLibrary();
             Button refreshButton = CreateToolbarButton("刷新", 76);
             refreshButton.Click += (s, e) => RefreshSelectedLibrary();
+            Button visibilityButton = CreateToolbarButton("设置显示", 92);
+            visibilityButton.Click += (s, e) => ConfigureVisibleBlocks();
             toolbar.Children.Add(addButton);
             toolbar.Children.Add(removeButton);
             toolbar.Children.Add(relinkButton);
             toolbar.Children.Add(refreshButton);
+            toolbar.Children.Add(visibilityButton);
             Grid.SetRow(toolbar, 0);
             root.Children.Add(toolbar);
 
@@ -281,6 +284,35 @@ namespace XYDSignTool
             ResetLibraryItems(entry);
         }
 
+        private void ConfigureVisibleBlocks()
+        {
+            CustomBlockLibraryEntry entry = _libraryList.SelectedItem as CustomBlockLibraryEntry;
+            if (entry == null)
+            {
+                MessageBox.Show("请先选择一个图库。", "设置显示图块", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (entry.BlockNames == null || entry.BlockNames.Count == 0)
+            {
+                MessageBox.Show("该图库没有可配置的图块。", "设置显示图块", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            CustomBlockVisibilityWindow window = new CustomBlockVisibilityWindow(entry);
+            window.Owner = this;
+            window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            bool? result = window.ShowDialog();
+            if (result != true || !window.Saved) return;
+
+            if (window.ShowAllAutomatically)
+                CustomBlockLibraryStore.ShowAllBlocksAutomatically(entry);
+            else
+                CustomBlockLibraryStore.SetVisibleBlockNames(entry, window.SelectedBlockNames);
+
+            CustomBlockLibraryStore.Save(_catalog);
+            ResetLibraryItems(entry);
+        }
+
         private void ResetLibraryItems(CustomBlockLibraryEntry selectedEntry)
         {
             _libraryList.ItemsSource = null;
@@ -298,7 +330,7 @@ namespace XYDSignTool
 
             if (entry != null && entry.BlockNames != null)
             {
-                blocks = entry.BlockNames
+                blocks = CustomBlockLibraryStore.GetVisibleBlockNames(entry)
                     .Where(name => string.IsNullOrWhiteSpace(filter) || name.IndexOf(filter, StringComparison.CurrentCultureIgnoreCase) >= 0)
                     .Select(name => new CustomBlockDescriptor
                     {

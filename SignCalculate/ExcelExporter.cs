@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Text;
 
 namespace XYDSignTool
@@ -29,8 +30,9 @@ namespace XYDSignTool
 
                 int colSpan = includeThickness ? 14 : 13;
                 int mergeCols = includeThickness ? 7 : 6;
+                string reportTitle = GetReportTitle(savePath, "跨图纸标识汇总造价清单");
 
-                sw.WriteLine($"<tr><td colspan='{colSpan}' class='title'>跨图纸标识汇总造价清单</td></tr>");
+                sw.WriteLine($"<tr><td colspan='{colSpan}' class='title'>{reportTitle}</td></tr>");
 
                 sw.WriteLine("<tr class='header'>");
                 var headers = includeThickness ?
@@ -91,8 +93,9 @@ namespace XYDSignTool
                 sw.WriteLine("</style></head><body><table>");
 
                 int colSpan = includeThickness ? 10 : 9;
+                string reportTitle = GetReportTitle(savePath, "标识数量清单");
 
-                sw.WriteLine($"<tr><td colspan='{colSpan}' class='title'>标识数量清单</td></tr>");
+                sw.WriteLine($"<tr><td colspan='{colSpan}' class='title'>{reportTitle}</td></tr>");
 
                 sw.WriteLine("<tr class='header'>");
                 var headers = includeThickness ?
@@ -130,6 +133,18 @@ namespace XYDSignTool
         private static void WriteGrandTotalRow(StreamWriter sw, int qty, double total, int mergeCols)
         {
             sw.WriteLine($"<tr><td colspan='{mergeCols}' class='grandtotal'>总   计：</td><td class='grandtotal'>{qty}</td><td class='grandtotal' colspan='4'></td><td class='grandtotal num'>{total:F2}</td><td class='grandtotal'></td></tr>");
+        }
+
+        private static string GetReportTitle(string savePath, string fallbackTitle)
+        {
+            try
+            {
+                string fileName = Path.GetFileNameWithoutExtension(savePath);
+                if (!string.IsNullOrWhiteSpace(fileName))
+                    return WebUtility.HtmlEncode(fileName);
+            }
+            catch { }
+            return WebUtility.HtmlEncode(fallbackTitle ?? "");
         }
     }
 }

@@ -88,6 +88,12 @@ namespace XYDSignTool
                 {
                     extDb.ReadDwgFile(dwgPath, FileShare.Read, true, "");
                     results.AddRange(ScanDatabase(extDb, Path.GetFileName(dwgPath), includeCover, out ignoredObjectCount));
+                    foreach (TitleBlockModel item in results)
+                    {
+                        item.SourceFilePath = Path.GetFullPath(dwgPath);
+                        item.IsExternalSource = true;
+                        item.ObjId = ObjectId.Null;
+                    }
                 }
                 catch { }
             }
@@ -121,6 +127,10 @@ namespace XYDSignTool
                 DocumentName = docName,
                 LayoutName = layoutName,
                 IsModelSpace = isModelSpace,
+                SourceFilePath = docName,
+                SourceHandle = br.Handle.ToString(),
+                IsExternalSource = false,
+                IsImportedSource = false,
                 DrawNum = GetMappedValue(attrs, rule.DrawNumTags),
                 DrawTitle = title,
                 PageSize = pageSize,

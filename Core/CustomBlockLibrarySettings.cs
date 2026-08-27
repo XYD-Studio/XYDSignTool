@@ -20,6 +20,8 @@ namespace XYDSignTool
         public string FilePath { get; set; }
         public long LastWriteTimeUtcTicks { get; set; }
         public List<string> BlockNames { get; set; } = new List<string>();
+        public bool VisibilityFilterEnabled { get; set; }
+        public List<string> VisibleBlockNames { get; set; } = new List<string>();
 
         [XmlIgnore]
         public bool IsAvailable { get; set; }
@@ -110,6 +112,11 @@ namespace XYDSignTool
             {
                 entry.FilePath = NormalizePath(entry.FilePath);
                 if (entry.BlockNames == null) entry.BlockNames = new List<string>();
+                if (entry.VisibleBlockNames == null) entry.VisibleBlockNames = new List<string>();
+                entry.VisibleBlockNames = entry.VisibleBlockNames
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
             }
             return catalog;
         }
@@ -150,6 +157,7 @@ namespace XYDSignTool
             if (entry == null || string.IsNullOrWhiteSpace(entry.FilePath)) return false;
             entry.FilePath = NormalizePath(entry.FilePath);
             if (entry.BlockNames == null) entry.BlockNames = new List<string>();
+            if (entry.VisibleBlockNames == null) entry.VisibleBlockNames = new List<string>();
 
             if (!File.Exists(entry.FilePath))
             {
@@ -170,7 +178,7 @@ namespace XYDSignTool
             if (!force && entry.LastWriteTimeUtcTicks == modifiedTicks && entry.LastWriteTimeUtcTicks != 0)
             {
                 entry.IsAvailable = true;
-                entry.Status = entry.BlockNames.Count == 0 ? "没有可插入图块" : entry.BlockNames.Count + " 个图块";
+                entry.Status = BuildStatus(entry);
                 return false;
             }
 
@@ -185,11 +193,62 @@ namespace XYDSignTool
                 return changed;
             }
 
+            HashSet<string> scannedNames = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
             entry.BlockNames = names;
+            if (entry.VisibilityFilterEnabled)
+            {
+                entry.VisibleBlockNames = entry.VisibleBlockNames
+                    .Where(scannedNames.Contains)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
             entry.LastWriteTimeUtcTicks = modifiedTicks;
             entry.IsAvailable = true;
-            entry.Status = names.Count == 0 ? "没有可插入图块" : names.Count + " 个图块";
+            entry.Status = BuildStatus(entry);
             return true;
+        }
+
+        public static List<string> GetVisibleBlockNames(CustomBlockLibraryEntry entry)
+        {
+            if (entry == null || entry.BlockNames == null) return new List<string>();
+            if (!entry.VisibilityFilterEnabled) return new List<string>(entry.BlockNames);
+
+            HashSet<string> visible = new HashSet<string>(
+                entry.VisibleBlockNames ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase);
+            return entry.BlockNames.Where(visible.Contains).ToList();
+        }
+
+        public static void SetVisibleBlockNames(CustomBlockLibraryEntry entry, IEnumerable<string> visibleNames)
+        {
+            if (entry == null) return;
+            HashSet<string> allNames = new HashSet<string>(
+                entry.BlockNames ?? new List<string>(),
+                StringComparer.OrdinalIgnoreCase);
+            entry.VisibilityFilterEnabled = true;
+            entry.VisibleBlockNames = (visibleNames ?? Enumerable.Empty<string>())
+                .Where(name => !string.IsNullOrWhiteSpace(name) && allNames.Contains(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+            entry.Status = BuildStatus(entry);
+        }
+
+        public static void ShowAllBlocksAutomatically(CustomBlockLibraryEntry entry)
+        {
+            if (entry == null) return;
+            entry.VisibilityFilterEnabled = false;
+            entry.VisibleBlockNames = new List<string>();
+            entry.Status = BuildStatus(entry);
+        }
+
+        private static string BuildStatus(CustomBlockLibraryEntry entry)
+        {
+            int total = entry == null || entry.BlockNames == null ? 0 : entry.BlockNames.Count;
+            if (total == 0) return "没有可插入图块";
+            if (entry == null || !entry.VisibilityFilterEnabled) return total + " 个图块";
+            int visible = GetVisibleBlockNames(entry).Count;
+            return "显示 " + visible + " / " + total + " 个图块";
         }
 
         public static List<string> ScanInsertableBlockNames(string dwgPath, out string error)

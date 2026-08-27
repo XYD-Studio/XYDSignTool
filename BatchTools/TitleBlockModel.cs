@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.IO;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 
@@ -11,6 +12,27 @@ namespace XYDSignTool
         public string DocumentName { get; set; }
         public string LayoutName { get; set; }
         public bool IsModelSpace { get; set; }
+        public string SourceFilePath { get; set; }
+        public string SourceHandle { get; set; }
+        public bool IsExternalSource { get; set; }
+        public bool IsImportedSource { get; set; }
+
+        public string SourceDisplayName
+        {
+            get
+            {
+                if (IsImportedSource)
+                    return string.IsNullOrWhiteSpace(DocumentName) ? "JSON 导入" : "JSON 导入：" + DocumentName;
+                string source = string.IsNullOrWhiteSpace(SourceFilePath) ? DocumentName : SourceFilePath;
+                try { return Path.GetFileName(source); }
+                catch { return source ?? ""; }
+            }
+        }
+
+        public string SpaceDisplayName
+        {
+            get { return IsModelSpace ? "模型空间" : (LayoutName ?? ""); }
+        }
 
         private string _drawNum;
         public string DrawNum { get { return _drawNum; } set { _drawNum = value; OnPropertyChanged("DrawNum"); } }

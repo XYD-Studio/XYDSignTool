@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$PluginVersion = "1.1.0",
-    [string]$InstallerVersionLabel = "V1.1",
+    [string]$PluginVersion = "1.2.0",
+    [string]$InstallerVersionLabel = "V1.2",
     [string]$CacheRoot = (Join-Path $env:LOCALAPPDATA "XYDSignTool\ObjectARX"),
     [string]$ObjectArx2018Root,
     [string]$ObjectArx2020Root,
@@ -411,12 +411,13 @@ function Invoke-Process {
 function Copy-DirectoryContents {
     param(
         [string]$Source,
-        [string]$Destination
+        [string]$Destination,
+        [string]$Filter = "*"
     )
 
     if (-not (Test-Path -LiteralPath $Source)) { return }
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
-    Get-ChildItem -LiteralPath $Source -Force | ForEach-Object {
+    Get-ChildItem -LiteralPath $Source -Filter $Filter -Force | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination $Destination -Recurse -Force
     }
 }
@@ -447,7 +448,7 @@ function Copy-PluginPayload {
     )
     foreach ($source in $blockSources) {
         if (Test-Path -LiteralPath $source) {
-            Copy-DirectoryContents $source (Join-Path $DestinationDir "Blocks")
+            Copy-DirectoryContents $source (Join-Path $DestinationDir "Blocks") "*.dwg"
             break
         }
     }

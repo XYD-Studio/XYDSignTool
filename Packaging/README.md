@@ -21,7 +21,7 @@ The script builds these payloads:
 The final installer is written to:
 
 ```text
-Installer\Output\XYD_Toolkit_V1.1_AutoCAD2018-2026_Setup.exe
+Installer\Output\XYD_Toolkit_V1.2_AutoCAD2018-2026_Setup.exe
 ```
 
 ## SDK Inputs

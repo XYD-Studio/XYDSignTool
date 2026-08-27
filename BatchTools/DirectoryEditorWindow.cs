@@ -30,6 +30,7 @@ namespace XYDSignTool
         public event Action ExportExcelRequested;
         public event Action ExportJsonRequested;
         public event Action ImportJsonRequested;
+        public event Action WriteBackRequested;
 
         public DirectoryEditorWindow(List<TitleBlockModel> data, string actionName)
         {
@@ -43,7 +44,8 @@ namespace XYDSignTool
         private void InitializeComponent()
         {
             this.Title = "图纸目录排版编辑器 - " + ActionName;
-            this.Width = 1120; this.Height = 550;
+            this.Width = Math.Min(1320, SystemParameters.WorkArea.Width - 40);
+            this.Height = Math.Min(600, SystemParameters.WorkArea.Height - 80);
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             this.Background = new SolidColorBrush(Color.FromRgb(245, 245, 245));
             this.ShowInTaskbar = false;
@@ -105,9 +107,12 @@ namespace XYDSignTool
                 GridLinesVisibility = DataGridGridLinesVisibility.All,
                 Background = Brushes.White,
                 AlternatingRowBackground = new SolidColorBrush(Color.FromRgb(248, 248, 248)),
-                RowHeaderWidth = 0
+                RowHeaderWidth = 0,
+                FrozenColumnCount = 2
             };
 
+            _dataGrid.Columns.Add(new DataGridTextColumn { Header = "来源图纸", Binding = new Binding("SourceDisplayName"), Width = 150, IsReadOnly = true });
+            _dataGrid.Columns.Add(new DataGridTextColumn { Header = "空间/布局", Binding = new Binding("SpaceDisplayName"), Width = 100, IsReadOnly = true });
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "图号", Binding = new Binding("DrawNum") { Mode = BindingMode.TwoWay }, Width = 140 });
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "图纸名称", Binding = new Binding("DrawTitle") { Mode = BindingMode.TwoWay }, Width = 280 });
             _dataGrid.Columns.Add(new DataGridTextColumn { Header = "图幅", Binding = new Binding("PageSize") { Mode = BindingMode.TwoWay }, Width = 80 });
@@ -127,6 +132,12 @@ namespace XYDSignTool
             bottomPanel.Children.Add(new TextBlock { Text = "提示：按住表头左右拖动，即可调整出表的列顺序。", Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 20, 0) });
             Button btnImportJson = new Button { Content = "导入 JSON", Width = 100, Height = 30, Margin = new Thickness(0, 0, 10, 0) };
             btnImportJson.Click += (s, e) => ImportJsonRequested?.Invoke();
+            Button btnWriteBack = new Button { Content = "保存并回写图框属性", Width = 160, Height = 30, Margin = new Thickness(0, 0, 10, 0) };
+            btnWriteBack.Click += (s, e) =>
+            {
+                CommitGridEdits();
+                WriteBackRequested?.Invoke();
+            };
             Button btnCad = new Button { Content = "在图纸中生成", Width = 120, Height = 30, Margin = new Thickness(0, 0, 10, 0), IsDefault = true };
             btnCad.Click += (s, e) => { if (BuildFinalColumns()) GenerateInDrawingRequested?.Invoke(); };
             Button btnExcel = new Button { Content = "导出 Excel", Width = 100, Height = 30, Margin = new Thickness(0, 0, 10, 0) };
@@ -136,7 +147,7 @@ namespace XYDSignTool
             Button btnExit = new Button { Content = "退出", Width = 80, Height = 30, IsCancel = true };
             btnExit.Click += (s, e) => this.Close();
 
-            bottomPanel.Children.Add(btnImportJson); bottomPanel.Children.Add(btnCad); bottomPanel.Children.Add(btnExcel); bottomPanel.Children.Add(btnJson); bottomPanel.Children.Add(btnExit);
+            bottomPanel.Children.Add(btnImportJson); bottomPanel.Children.Add(btnWriteBack); bottomPanel.Children.Add(btnCad); bottomPanel.Children.Add(btnExcel); bottomPanel.Children.Add(btnJson); bottomPanel.Children.Add(btnExit);
             Grid.SetRow(bottomPanel, 2); mainGrid.Children.Add(bottomPanel);
 
             this.Content = mainGrid;
@@ -163,12 +174,12 @@ namespace XYDSignTool
 
         private bool BuildFinalColumns()
         {
-            _dataGrid.CommitEdit(DataGridEditingUnit.Cell, true);
-            _dataGrid.CommitEdit(DataGridEditingUnit.Row, true);
+            CommitGridEdits();
             FinalColumns.Clear();
 
             var visibleCols = _dataGrid.Columns
                 .Where(c => c.Visibility == Visibility.Visible)
+                .Where(c => !IsSourceColumn(c))
                 .OrderBy(c => c.DisplayIndex)
                 .ToList();
 
@@ -190,6 +201,21 @@ namespace XYDSignTool
 
             IsConfirmed = true;
             return true;
+        }
+
+        private void CommitGridEdits()
+        {
+            _dataGrid.CommitEdit(DataGridEditingUnit.Cell, true);
+            _dataGrid.CommitEdit(DataGridEditingUnit.Row, true);
+        }
+
+        private static bool IsSourceColumn(DataGridColumn column)
+        {
+            DataGridTextColumn textColumn = column as DataGridTextColumn;
+            Binding binding = textColumn == null ? null : textColumn.Binding as Binding;
+            if (binding == null || binding.Path == null) return false;
+            string path = binding.Path.Path;
+            return path == "SourceDisplayName" || path == "SpaceDisplayName";
         }
     }
 }
