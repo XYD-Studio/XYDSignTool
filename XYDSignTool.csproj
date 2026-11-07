@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -100,6 +100,7 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
@@ -132,11 +133,25 @@
     <Compile Include="StatTools\FindSameCommands.cs" />
     <Compile Include="StatTools\FindSameWindow.cs" />
     <Compile Include="StatTools\ObjectRotationCommands.cs" />
+    <Compile Include="StatTools\ObjectScaleCommands.cs" />
+    <Compile Include="BatchTools\BatchPlotSession.cs" />
     <Compile Include="StatTools\TextReplaceCommands.cs" />
     <Compile Include="StatTools\TextReplaceWindow.cs" />
     <Compile Include="StatTools\TextSearchCommands.cs" />
     <Compile Include="SignCalculate\AreaSorterWindow.cs" />
     <Compile Include="SignCalculate\CadTableGenerator.cs" />
+    <Compile Include="Core\AttributeMapping.cs" />
+    <Compile Include="Core\AttributeMappingService.cs" />
+    <Compile Include="Core\ElectronicSignatureService.cs" />
+    <Compile Include="Core\MappingEditorWindow.cs" />
+    <Compile Include="Core\SignatureSetupWindow.cs" />
+    <Compile Include="Core\AttributeReportExporter.cs" />
+    <Compile Include="Core\AttributeSourceWindow.cs" />
+    <Compile Include="Core\AttributeCenterWindow.cs" />
+    <Compile Include="Core\AttributeCenterCommands.cs" />
+    <Compile Include="SignCalculate\StandardSignAdapter.cs" />
+    <Compile Include="StatTools\LineToPolylineCommands.cs" />
+    <Compile Include="StatTools\PolylineBreakCommands.cs" />
     <Compile Include="Commands.cs" />
     <Compile Include="SignCalculate\ExcelExporter.cs" />
     <Compile Include="Core\IconFactory.cs" />
@@ -157,6 +172,9 @@
     <Resource Include="Resources\logo.png" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Blocks\*.dwg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="PMPFiles\**\*.pmp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

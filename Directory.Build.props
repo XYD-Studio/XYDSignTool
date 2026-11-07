@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- The legacy and .NET 8 projects share sources, but must not share NuGet assets. -->
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

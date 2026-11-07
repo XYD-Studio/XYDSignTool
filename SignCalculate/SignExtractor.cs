@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Globalization;
+using System.Linq;
+using System.Runtime.Serialization.Json;
+using System.Text;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Runtime;
@@ -23,6 +27,12 @@ namespace XYDSignTool
                 BlockTableRecord ms = tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForRead) as BlockTableRecord;
 
                 results.AddRange(ExtractFromBlockTableRecord(ms, tr, includeExcluded));
+                foreach (var item in results)
+                {
+                    var block = (BlockReference)tr.GetObject(item.ObjId, OpenMode.ForRead);
+                    item.SourceRecord = AttributeMappingService.Capture(db, db.Filename, "Model", block, tr);
+                    item.SourceRecord.Mode = item.Mode;
+                }
                 tr.Commit();
             }
             return results;
@@ -39,6 +49,13 @@ namespace XYDSignTool
                 {
                     extDb.ReadDwgFile(dwgPath, FileShare.Read, true, "");
                     results.AddRange(ExtractFromDatabase(extDb));
+                    foreach (var item in results)
+                    {
+                        item.ObjId = ObjectId.Null;
+                        item.SourceRecord.ObjectId = ObjectId.Null;
+                        item.SourceRecord.OpenDatabase = null;
+                        item.SourceRecord.FilePath = Path.GetFullPath(dwgPath);
+                    }
                 }
                 catch (System.Exception) { }
             }
@@ -47,45 +64,13 @@ namespace XYDSignTool
 
         public static List<SignItem> ReadJson(string jsonPath)
         {
-            List<SignItem> items = new List<SignItem>();
-            if (!File.Exists(jsonPath)) return items;
-
-            try
+            var serializer = new DataContractJsonSerializer(typeof(List<Dictionary<string, object>>), new DataContractJsonSerializerSettings { UseSimpleDictionaryFormat = true });
+            using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(jsonPath, Encoding.UTF8))))
             {
-                using (StreamReader sr = new StreamReader(jsonPath, System.Text.Encoding.UTF8))
-                {
-                    string line;
-                    Dictionary<string, string> currentItem = null;
-
-                    while ((line = sr.ReadLine()) != null)
-                    {
-                        line = line.Trim();
-                        if (line.StartsWith("{"))
-                        {
-                            currentItem = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                        }
-                        else if (line.StartsWith("}") || line.StartsWith("},"))
-                        {
-                            if (currentItem != null)
-                            {
-                                items.Add(FormatJsonToItem(currentItem));
-                                currentItem = null;
-                            }
-                        }
-                        else if (currentItem != null && line.Contains(":"))
-                        {
-                            int colonIdx = line.IndexOf(':');
-                            string key = line.Substring(0, colonIdx).Trim(' ', '\t', '"', ',');
-                            string val = line.Substring(colonIdx + 1).Trim(' ', '\t', '"', ',');
-
-                            val = val.Replace("\\\"", "\"").Replace("\\/", "/");
-                            currentItem[key] = val;
-                        }
-                    }
-                }
+                var raw = (List<Dictionary<string, object>>)serializer.ReadObject(stream);
+                if (raw == null) throw new InvalidDataException("JSON 数据库应为记录数组。");
+                return raw.Select(r => FormatJsonToItem(r.ToDictionary(k => k.Key, k => Convert.ToString(k.Value, CultureInfo.InvariantCulture), StringComparer.OrdinalIgnoreCase))).ToList();
             }
-            catch (System.Exception) { }
-            return items;
         }
 
         private static SignItem FormatJsonToItem(Dictionary<string, string> raw)
@@ -93,21 +78,23 @@ namespace XYDSignTool
             SignItem item = new SignItem
             {
                 ObjId = ObjectId.Null, // 外部导入的 JSON 没有实体 ID
-                BlockName = "EXT_JSON",
-                Mode = "NORMAL",
+                BlockName = string.IsNullOrEmpty(GetDictValue(raw, "BLOCKNAME")) ? "EXT_JSON" : GetDictValue(raw, "BLOCKNAME"),
+                Mode = string.IsNullOrEmpty(GetDictValue(raw, "MODE")) ? "NORMAL" : GetDictValue(raw, "MODE"),
                 Area = GetDictValue(raw, "AREA"),
                 No = GetDictValue(raw, "NO"),
                 Name = GetDictValue(raw, "NAME"),
                 InstallType = GetDictValue(raw, "TYPE"),
-                Width = double.TryParse(GetDictValue(raw, "WIDTH"), out double w) ? w : 0,
-                Height = double.TryParse(GetDictValue(raw, "HEIGHT"), out double h) ? h : 0,
+                Width = double.TryParse(GetDictValue(raw, "WIDTH"), NumberStyles.Float, CultureInfo.InvariantCulture, out double w) ? w : 0,
+                Height = double.TryParse(GetDictValue(raw, "HEIGHT"), NumberStyles.Float, CultureInfo.InvariantCulture, out double h) ? h : 0,
                 Thickness = GetDictValue(raw, "THICKNESS"),
                 Weight = GetDictValue(raw, "WEIGHT"),
                 Qty = int.TryParse(GetDictValue(raw, "QTY"), out int q) ? q : 1,
                 Tech = GetDictValue(raw, "TECH"),
                 Power = GetDictValue(raw, "POWER"),
                 Remarks = GetDictValue(raw, "REMARKS"),
-                IsCount = NormalizeCountValue(GetDictValue(raw, "ISCOUNT"))
+                IsCount = NormalizeCountValue(GetDictValue(raw, "ISCOUNT")),
+                CategoryId = int.TryParse(GetDictValue(raw, "CATEGORY_ID"), out int category) ? category : 0,
+                BasePrice = double.TryParse(GetDictValue(raw, "BASEPRICE"), NumberStyles.Float, CultureInfo.InvariantCulture, out double price) ? price : 0
             };
             return item;
         }

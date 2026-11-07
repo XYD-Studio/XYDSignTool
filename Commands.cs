@@ -22,29 +22,16 @@ namespace XYDSignTool
         }
 
         // ==================== ★1. 生成 CAD 原生表格★ ====================
-        [CommandMethod("XYD_CAD")]
+        [CommandMethod("XYD_CAD", CommandFlags.Session)]
         public void GenerateCadTable()
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            if (doc == null) return;
-            Editor ed = doc.Editor;
-
-            var data = GatherAndSortData(ed, out List<string> areaOrder);
-            if (data == null || data.Count == 0) return;
-
-            PromptPointResult ppr = ed.GetPoint("\n请指定清单表格的左上角插入点: ");
-            if (ppr.Status == PromptStatus.OK)
-            {
-                using (DocumentLock loc = doc.LockDocument())
-                {
-                    CadTableGenerator.CreateTable(doc.Database, ppr.Value, data, true);
-                }
-                ed.WriteMessage("\n[成功] CAD 图纸内表格生成完毕！");
-            }
+            var doc = Application.DocumentManager.MdiActiveDocument; if (doc == null) return;
+            var data = GatherAndSortData(doc.Editor, out List<string> areaOrder);
+            AttributeCenterCommands.ShowStandard(data, false);
         }
 
         // ==================== ★新增：导出 JSON 数据库★ ====================
-        [CommandMethod("XYD_JSON")]
+        [CommandMethod("XYD_JSON", CommandFlags.Session)]
         public void ExportJsonList()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
@@ -65,30 +52,7 @@ namespace XYDSignTool
             {
                 try
                 {
-                    using (StreamWriter sw = new StreamWriter(sfd.FileName, false, System.Text.Encoding.UTF8))
-                    {
-                        sw.WriteLine("[");
-                        for (int i = 0; i < data.Count; i++)
-                        {
-                            var item = data[i];
-                            sw.WriteLine("  {");
-                            sw.WriteLine($"    \"AREA\": \"{SafeJson(item.Area)}\",");
-                            sw.WriteLine($"    \"NO\": \"{SafeJson(item.No)}\",");
-                            sw.WriteLine($"    \"NAME\": \"{SafeJson(item.Name)}\",");
-                            sw.WriteLine($"    \"TYPE\": \"{SafeJson(item.InstallType)}\",");
-                            sw.WriteLine($"    \"WIDTH\": {item.Width},");
-                            sw.WriteLine($"    \"HEIGHT\": {item.Height},");
-                            sw.WriteLine($"    \"THICKNESS\": \"{SafeJson(item.Thickness)}\",");
-                            sw.WriteLine($"    \"WEIGHT\": \"{SafeJson(item.Weight)}\",");
-                            sw.WriteLine($"    \"QTY\": {item.Qty},");
-                            sw.WriteLine($"    \"TECH\": \"{SafeJson(item.Tech)}\",");
-                            sw.WriteLine($"    \"POWER\": \"{SafeJson(item.Power)}\",");
-                            sw.WriteLine($"    \"CATEGORY_ID\": {item.CategoryId}");
-                            sw.Write("  }");
-                            if (i < data.Count - 1) sw.WriteLine(","); else sw.WriteLine();
-                        }
-                        sw.WriteLine("]");
-                    }
+                    AttributeReportExporter.FullJson(sfd.FileName, data);
                     ed.WriteMessage($"\n[成功] JSON 数据库已导出至:\n{sfd.FileName}\n");
                 }
                 catch (System.Exception ex)
@@ -102,43 +66,20 @@ namespace XYDSignTool
         private string SafeJson(string val)
         {
             if (string.IsNullOrEmpty(val)) return "";
-            return val.Replace("\\", "/").Replace("\"", "\\\"");
+            return AttributeReportExporter.EscapeJson(val);
         }
 
         // ==================== ★2. 导出普通 Excel 清单★ ====================
-        [CommandMethod("XYD_XLS")]
+        [CommandMethod("XYD_XLS", CommandFlags.Session)]
         public void ExportXlsList()
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            if (doc == null) return;
-            Editor ed = doc.Editor;
-
-            var data = GatherAndSortData(ed, out List<string> areaOrder);
-            if (data == null || data.Count == 0) return;
-
-            SaveFileDialog sfd = new SaveFileDialog
-            {
-                Title = "保存普通数量清单",
-                Filter = "Excel清单 (*.xls)|*.xls",
-                FileName = $"标识普通数量清单_{DateTime.Now:yyMMdd}.xls"
-            };
-
-            if (sfd.ShowDialog() == true)
-            {
-                try
-                {
-                    ExcelExporter.ExportNormalReport(data, areaOrder, sfd.FileName, true);
-                    ed.WriteMessage($"\n[成功] 清单已导出至:\n{sfd.FileName}\n");
-                }
-                catch (System.Exception ex)
-                {
-                    ed.WriteMessage($"\n[错误] 保存失败: {ex.Message}");
-                }
-            }
+            var doc = Application.DocumentManager.MdiActiveDocument; if (doc == null) return;
+            var data = GatherAndSortData(doc.Editor, out List<string> areaOrder);
+            AttributeCenterCommands.ShowStandard(data, false);
         }
 
         // ==================== 3. 终极造价结算命令 ====================
-        [CommandMethod("XYD_COST")]
+        [CommandMethod("XYD_COST", CommandFlags.Session)]
         public void CalculateCost()
         {
             Document doc = Application.DocumentManager.MdiActiveDocument;
@@ -189,114 +130,14 @@ namespace XYDSignTool
                 item.BasePrice = priceDict.TryGetValue(tech, out price) ? price : 0.0;
             }
 
-            SaveFileDialog sfd = new SaveFileDialog
-            {
-                Title = "导出造价清单",
-                Filter = "Excel造价清单 (*.xls)|*.xls",
-                FileName = $"标识造价清单_{DateTime.Now:yyMMdd}.xls"
-            };
-
-            if (sfd.ShowDialog() == true)
-            {
-                try
-                {
-                    ExcelExporter.ExportCostReport(data, areaOrder, sfd.FileName, true);
-                    ed.WriteMessage($"\n[成功] 完整造价报表已成功生成并保存至:\n{sfd.FileName}\n");
-                }
-                catch (System.Exception ex)
-                {
-                    ed.WriteMessage($"\n[错误] 保存造价表失败: {ex.Message}");
-                }
-            }
+            AttributeCenterCommands.ShowStandard(data, true);
         }
 
         // ==================== 4. 可视化网格编辑器回写命令 ====================
-        [CommandMethod("XYD_EDIT")]
+        [CommandMethod("XYD_EDIT", CommandFlags.Session)]
         public void EditDrawingAttributes()
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            if (doc == null) return;
-            Editor ed = doc.Editor;
-
-            ed.WriteMessage("\n正在扫描当前图纸...");
-            List<SignItem> currentData = SignExtractor.ExtractFromDatabase(doc.Database, true);
-            if (currentData.Count == 0)
-            {
-                ed.WriteMessage("\n当前图纸未找到可编辑的标识属性块。");
-                return;
-            }
-
-            SignEditorWindow editorWin = new SignEditorWindow(currentData);
-            Application.ShowModalWindow(editorWin);
-
-            if (!editorWin.IsConfirmed)
-            {
-                ed.WriteMessage("\n已取消属性修改。");
-                return;
-            }
-
-            int updateCount = 0;
-            using (DocumentLock loc = doc.LockDocument())
-            {
-                using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
-                {
-                    foreach (var item in editorWin.Items)
-                    {
-                        if (item.ObjId != ObjectId.Null && item.ObjId.IsValid)
-                        {
-                            BlockReference br = tr.GetObject(item.ObjId, OpenMode.ForWrite) as BlockReference;
-                            if (br != null)
-                            {
-                                Dictionary<string, string> updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                                updates["--XYDAREA"] = item.Area;
-                                updates["XYD-NUMBER"] = item.No;
-                                updates["XYD-TYPE"] = item.InstallType;
-                                updates["XYD-TECH"] = item.Tech;
-                                updates["XYD-WEIGHT"] = item.Weight;
-                                updates["XYD-POWER"] = item.Power;
-                                updates["XYD-REMARKS"] = item.Remarks;
-                                updates["--XYDISCOUNT"] = string.Equals(item.IsCount, "否", StringComparison.OrdinalIgnoreCase) ? "否" : "是";
-
-                                string sizeStr = $"{item.Width}*{item.Height}";
-                                if (!string.IsNullOrEmpty(item.Thickness)) sizeStr += $"*{item.Thickness}";
-                                string qtyStr = item.Qty.ToString();
-
-                                if (item.Mode == "CN")
-                                {
-                                    updates["--XYDNAME"] = item.Name.EndsWith("中文") ? item.Name.Substring(0, item.Name.Length - 2) : item.Name;
-                                    updates["XYD-CNSIZE"] = sizeStr;
-                                    updates["XYD-CNQTY"] = qtyStr;
-                                }
-                                else if (item.Mode == "EN")
-                                {
-                                    updates["--XYDNAME"] = item.Name.EndsWith("英文") ? item.Name.Substring(0, item.Name.Length - 2) : item.Name;
-                                    updates["XYD-ENSIZE"] = sizeStr;
-                                    updates["XYD-ENQTY"] = qtyStr;
-                                }
-                                else
-                                {
-                                    updates["--XYDNAME"] = item.Name;
-                                    updates["XYD-SIZE"] = sizeStr;
-                                    updates["XYD-QTY"] = qtyStr;
-                                }
-
-                                foreach (ObjectId attId in br.AttributeCollection)
-                                {
-                                    AttributeReference attRef = tr.GetObject(attId, OpenMode.ForWrite) as AttributeReference;
-                                    if (attRef != null && updates.ContainsKey(attRef.Tag))
-                                    {
-                                        attRef.TextString = updates[attRef.Tag];
-                                    }
-                                }
-                                updateCount++;
-                            }
-                        }
-                    }
-                    tr.Commit();
-                }
-            }
-            doc.SendStringToExecute("REGEN\n", true, false, false);
-            Application.ShowAlertDialog($"属性回写同步完成！\n已成功同步修改 {updateCount} 个图件属性。");
+            AttributeCenterCommands.OpenStandard(true);
         }
 
         // ==================== 高度聚合的内部提取与排序引擎 ====================
@@ -304,70 +145,8 @@ namespace XYDSignTool
         {
             areaOrder = new List<string>();
 
-            ed.WriteMessage("\n正在扫描当前激活图纸...");
-            List<SignItem> allData = SignExtractor.ExtractFromDatabase(Application.DocumentManager.MdiActiveDocument.Database);
-            ed.WriteMessage($" 成功提取 {allData.Count} 条记录。");
-
-            while (true)
-            {
-                PromptKeywordOptions pkoMerge = new PromptKeywordOptions("\n是否合并外部数据？ [选择本地DWG(D) / 提取其他已打开标签页(O) / 导入JSON(J) / 结束并下一步(N)] <N>:");
-                pkoMerge.Keywords.Add("D");
-                pkoMerge.Keywords.Add("O");
-                pkoMerge.Keywords.Add("J");
-                pkoMerge.Keywords.Add("N");
-                pkoMerge.Keywords.Default = "N";
-                PromptResult prMerge = ed.GetKeywords(pkoMerge);
-
-                if (prMerge.Status != PromptStatus.OK || prMerge.StringResult == "N") break;
-
-                string opt = prMerge.StringResult;
-
-                if (opt == "D")
-                {
-                    OpenFileDialog ofd = new OpenFileDialog { Filter = "CAD图纸 (*.dwg)|*.dwg", Title = "选择外部图纸" };
-                    if (ofd.ShowDialog() == true)
-                    {
-                        Document openDoc = FindOpenedDocument(ofd.FileName);
-                        if (openDoc != null)
-                        {
-                            ed.WriteMessage($"\n正在提取已打开图纸: {openDoc.Name}...");
-                            allData.AddRange(SignExtractor.ExtractFromDatabase(openDoc.Database));
-                        }
-                        else
-                        {
-                            allData.AddRange(SignExtractor.ExtractExternalDatabase(ofd.FileName));
-                        }
-                    }
-                }
-                else if (opt == "O")
-                {
-                    int oCount = 0;
-                    foreach (Document openedDoc in Application.DocumentManager)
-                    {
-                        if (openedDoc != Application.DocumentManager.MdiActiveDocument)
-                        {
-                            ed.WriteMessage($"\n正在实时提取: {openedDoc.Name}...");
-                            allData.AddRange(SignExtractor.ExtractFromDatabase(openedDoc.Database));
-                            oCount++;
-                        }
-                    }
-                    if (oCount == 0) ed.WriteMessage("\n未检测到其他打开的标签页！");
-                }
-                else if (opt == "J")
-                {
-                    OpenFileDialog ofd = new OpenFileDialog { Filter = "JSON数据 (*.json)|*.json", Title = "导入外部JSON数据并合并" };
-                    if (ofd.ShowDialog() == true)
-                    {
-                        allData.AddRange(SignExtractor.ReadJson(ofd.FileName));
-                    }
-                }
-            }
-
-            if (allData.Count == 0)
-            {
-                ed.WriteMessage("\n未找到任何可结算的数据。");
-                return null;
-            }
+            List<SignItem> allData = AttributeCenterCommands.GatherSigns(false);
+            if (allData.Count == 0) return null;
 
             List<string> uniqueAreas = GetUniqueAreas(allData);
             AreaSorterWindow sorterWin = new AreaSorterWindow(uniqueAreas);

@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$PluginVersion = "1.2.0",
-    [string]$InstallerVersionLabel = "V1.2",
+    [string]$PluginVersion = "1.3.0",
+    [string]$InstallerVersionLabel = "V1.3",
     [string]$CacheRoot = (Join-Path $env:LOCALAPPDATA "XYDSignTool\ObjectARX"),
     [string]$ObjectArx2018Root,
     [string]$ObjectArx2020Root,
@@ -441,23 +441,17 @@ function Copy-PluginPayload {
         Copy-Item -LiteralPath $pdb -Destination $DestinationDir -Force
     }
 
-    $blockSources = @(
-        (Join-Path $RepoRoot "Blocks"),
-        (Join-Path $RepoRoot "Installer\Contents\Blocks"),
-        (Join-Path $RepoRoot "bin\x64\Debug\Blocks")
-    )
-    foreach ($source in $blockSources) {
-        if (Test-Path -LiteralPath $source) {
-            Copy-DirectoryContents $source (Join-Path $DestinationDir "Blocks") "*.dwg"
-            break
-        }
+    $blocksSource = Join-Path $RepoRoot "Blocks"
+    foreach ($required in @("XYD_TitleBlocks.dwg", "XYD_Blocks.dwg")) {
+        if (-not (Test-Path -LiteralPath (Join-Path $blocksSource $required))) { throw "Missing required block library: $required" }
     }
+    Copy-DirectoryContents $blocksSource (Join-Path $DestinationDir "Blocks") "*.dwg"
 
     Copy-DirectoryContents (Join-Path $RepoRoot "Lisp") (Join-Path $DestinationDir "Lisp")
     Copy-DirectoryContents (Join-Path $RepoRoot "Installer\Contents\Lisp") (Join-Path $DestinationDir "Lisp")
 
     Copy-DirectoryContents (Join-Path $RepoRoot "PMPFiles") (Join-Path $DestinationDir "PMPFiles")
-    Copy-DirectoryContents (Join-Path $RepoRoot "Installer\Contents\PMPFiles") (Join-Path $DestinationDir "PMPFiles")
+    if (-not (Test-Path -LiteralPath (Join-Path $RepoRoot "PMPFiles\XYD_PaperSizes.pmp"))) { throw "Missing XYD paper template" }
 }
 
 function Add-PackageComponentXml {

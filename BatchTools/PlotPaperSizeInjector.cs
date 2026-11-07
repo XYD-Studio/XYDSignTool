@@ -48,22 +48,27 @@ namespace XYDSignTool
 
             try
             {
+                string backupPath = null;
+                if (File.Exists(targetPath) && !PathsEqual(preferredTemplate, targetPath))
+                {
+                    backupPath = targetPath + "." + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bak";
+                    File.Copy(targetPath, backupPath, false);
+                }
+                var templateBackups = new System.Collections.Generic.List<string>();
                 int copiedCount = 0;
                 foreach (string template in templates)
                 {
                     string dest = Path.Combine(pmpDir, Path.GetFileName(template));
                     if (!PathsEqual(template, dest))
                     {
+                        if (File.Exists(dest) && !PathsEqual(dest, targetPath))
+                        {
+                            string copyBackup = dest + "." + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bak";
+                            File.Copy(dest, copyBackup, false); templateBackups.Add(copyBackup);
+                        }
                         File.Copy(template, dest, true);
                     }
                     copiedCount++;
-                }
-
-                string backupPath = null;
-                if (File.Exists(targetPath))
-                {
-                    backupPath = targetPath + "." + DateTime.Now.ToString("yyyyMMddHHmmss") + ".bak";
-                    File.Copy(targetPath, backupPath, true);
                 }
 
                 if (!PathsEqual(preferredTemplate, targetPath))
@@ -97,6 +102,7 @@ namespace XYDSignTool
                     (string.IsNullOrEmpty(pc3BackupPath) ? "" : $"原 PC3 备份：{pc3BackupPath}\n") +
                     $"同步模板：{copiedCount} 个\n" +
                     (string.IsNullOrEmpty(backupPath) ? "" : $"原 PMP 备份：{backupPath}\n") +
+                    (templateBackups.Count == 0 ? "" : "原同名模板备份：" + string.Join("\n", templateBackups) + "\n") +
                     "\n如果刷新后仍看不到新图纸尺寸，请关闭本窗口重新进入批量打印，或打开该 PC3 的打印机特性后点确定让 AutoCAD 重载配置。";
                 return true;
             }
@@ -158,6 +164,18 @@ namespace XYDSignTool
             try
             {
                 byte[] originalBytes = File.ReadAllBytes(pc3Path);
+                if (Encoding.UTF8.GetString(originalBytes).TrimStart('\uFEFF').StartsWith("PIAFILEVERSION_3.0,json", StringComparison.OrdinalIgnoreCase))
+                {
+                    string json = Encoding.UTF8.GetString(originalBytes).TrimStart('\uFEFF');
+                    var pathRegex = new Regex("(\"user_defined_model_pathname\"\\s*:\\s*\")((?:\\\\.|[^\"\\\\])*)(\")", RegexOptions.IgnoreCase);
+                    if (!pathRegex.IsMatch(json)) { error = "PC3 JSON 内缺少 user_defined_model_pathname 字段。"; return false; }
+                    string updated = pathRegex.Replace(json, m => m.Groups[1].Value + EscapeJsonString(targetPmpPath) + m.Groups[3].Value, 1);
+                    if (json == updated) return true;
+                    backupPath = pc3Path + "." + DateTime.Now.ToString("yyyyMMddHHmmssfff") + ".bak";
+                    File.Copy(pc3Path, backupPath, false);
+                    File.WriteAllText(pc3Path, updated, new UTF8Encoding(false));
+                    return true;
+                }
                 int zlibStart = FindZlibStart(originalBytes);
                 if (zlibStart < 12)
                 {

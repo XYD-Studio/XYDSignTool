@@ -1,0 +1,17 @@
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <OutputType>Library</OutputType><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><LangVersion>7.3</LangVersion>
+    <OutputPath>..\artifacts\v13-tests\</OutputPath><BaseIntermediateOutputPath>..\artifacts\v13-tests-obj\</BaseIntermediateOutputPath>
+    <AcadRefDir Condition="'$(AcadRefDir)' == ''">D:\Program Files\autodesk\AutoCAD 2024\AutoCAD 2024</AcadRefDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" /><Reference Include="System.Core" /><Reference Include="System.Xml" /><Reference Include="System.Xaml" />
+    <Reference Include="PresentationCore" /><Reference Include="PresentationFramework" /><Reference Include="WindowsBase" />
+    <Reference Include="AcDbMgd"><HintPath>$(AcadRefDir)\AcDbMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="AcMgd"><HintPath>$(AcadRefDir)\AcMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="AcCoreMgd"><HintPath>$(AcadRefDir)\AcCoreMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="XYDSignTool"><HintPath>..\artifacts\v13-check\net48\XYDSignTool.dll</HintPath><Private>False</Private></Reference>
+    <Compile Include="V13Tests.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

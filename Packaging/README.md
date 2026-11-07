@@ -3,6 +3,13 @@
 This folder contains the reproducible packaging flow for the multi-version
 AutoCAD installer.
 
+V1.3 uses root `Blocks/XYD_Blocks.dwg`, `Blocks/XYD_TitleBlocks.dwg` and
+`PMPFiles/XYD_PaperSizes.pmp` as the authoritative resources for all four
+payloads. Missing required resources fail packaging explicitly. Older ignored
+`Installer/Contents` and `bin` resources cannot overwrite these inputs.
+Signature libraries and user mapping profiles are never included in the package.
+The assembly version is `1.3.0.0`; the installer version is `1.3.0`.
+
 ## Build
 
 Run from the repository root:
@@ -21,7 +28,7 @@ The script builds these payloads:
 The final installer is written to:
 
 ```text
-Installer\Output\XYD_Toolkit_V1.2_AutoCAD2018-2026_Setup.exe
+Installer\Output\XYD_Toolkit_V1.3_AutoCAD2018-2026_Setup.exe
 ```
 
 ## SDK Inputs

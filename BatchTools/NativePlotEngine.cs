@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.Win32;
 using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
@@ -32,6 +35,42 @@ namespace XYDSignTool
             PlotSettingsValidator psv = PlotSettingsValidator.Current;
             foreach (string style in psv.GetPlotStyleSheetList()) styles.Add(style);
             return styles;
+        }
+        public static List<string> GetPlotStyleDirectories()
+        {
+            // Read the active AutoCAD profile without instantiating its COM
+            // application. AcadApplication is unavailable in accoreconsole.
+            try
+            {
+                string root = HostApplicationServices.Current.UserRegistryProductRootKey;
+                string profile = Convert.ToString(Application.GetSystemVariable("CPROFILE"));
+                using (var key = Registry.CurrentUser.OpenSubKey(root + "\\Profiles\\" + profile + "\\General"))
+                {
+                    string paths = Convert.ToString(key?.GetValue("PrinterStyleSheetDir") ?? key?.GetValue("PrinterStyleSheetPath"));
+                    if (!string.IsNullOrWhiteSpace(paths)) return paths.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries).Select(p => Environment.ExpandEnvironmentVariables(p.Trim().Trim('"'))).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                }
+            }
+            catch { }
+            return new List<string>();
+        }
+        public static string ResolveColorPlotStyle(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || !Path.GetExtension(name).Equals(".ctb", StringComparison.OrdinalIgnoreCase)) return null;
+            if (Path.IsPathRooted(name)) return File.Exists(name) ? name : null;
+            foreach (string folder in GetPlotStyleDirectories())
+            {
+                string file = Path.Combine(folder, name); if (File.Exists(file)) return file;
+            }
+            try { string file = HostApplicationServices.Current.FindFile(name, HostApplicationServices.WorkingDatabase, FindFileHint.Default); return File.Exists(file) ? file : null; }
+            catch { return null; }
+        }
+        public static List<string> GetAvailableColorPlotStyles()
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string folder in GetPlotStyleDirectories())
+                try { foreach (string file in Directory.GetFiles(folder, "*.ctb")) names.Add(Path.GetFileName(file)); } catch { }
+            foreach (string style in GetAvailablePlotStyles()) if (ResolveColorPlotStyle(style) != null) names.Add(Path.GetFileName(style));
+            return names.OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         public static void RefreshPlotConfigurationList()
@@ -92,6 +131,9 @@ namespace XYDSignTool
                     return media.CanonicalName;
             }
 
+            // Never select a longer sheet merely because its name contains A0/A3.
+            if (Regex.IsMatch(requested, @"(?i)^A[0-4](?:\+[0-9]+(?:\.[0-9]+)?)?$")) return null;
+
             foreach (MediaInfo media in mediaList)
             {
                 if (ContainsIgnoreCase(media.LocalName, requested) || ContainsIgnoreCase(media.CanonicalName, requested))
@@ -138,6 +180,11 @@ namespace XYDSignTool
 
         public static bool PlotToPdf(Database db, TitleBlockModel block, string outputPath, string printerName, string canonicalMediaName, string styleSheet)
         {
+            if (!db.PlotStyleMode || ResolveColorPlotStyle(styleSheet) == null)
+            {
+                WriteMessage("\n[打印拦截] 需要颜色相关 CTB 模式及有效 CTB 文件，未输出 PDF。样式：" + styleSheet);
+                return false;
+            }
             bool success = false;
             PlotContextState plotContextState = null;
             Dictionary<string, object> oldSystemVariables = CaptureSystemVariables("BACKGROUNDPLOT", "OLEHIDE", "OLEQUALITY", "OLESTARTUP", "IMAGEQUALITY");
@@ -199,6 +246,8 @@ namespace XYDSignTool
                     try
                     {
                         piv.Validate(pi);
+                        if (!pi.ValidatedSettings.PlotPlotStyles || !EqualsIgnoreCase(Path.GetFileName(pi.ValidatedSettings.CurrentStyleSheet), Path.GetFileName(styleSheet)))
+                            throw new InvalidOperationException("选定的 CTB 未在最终打印设置中生效。");
                     }
                     catch (System.Exception ex)
                     {
@@ -273,10 +322,9 @@ namespace XYDSignTool
             ps.PrintLineweights = true;
             ps.ScaleLineweights = false;
             ApplyOleFriendlyPlotSettings(ps);
-            if (!string.IsNullOrWhiteSpace(styleSheet))
-            {
-                if (!TryPlotStep($"设置打印样式表[{styleSheet}]", () => psv.SetCurrentStyleSheet(ps, styleSheet), out error)) return false;
-            }
+            if (!TryPlotStep($"设置打印样式表[{styleSheet}]", () => psv.SetCurrentStyleSheet(ps, Path.GetFileName(styleSheet)), out error)) return false;
+            if (!ps.PlotPlotStyles || !EqualsIgnoreCase(Path.GetFileName(ps.CurrentStyleSheet), Path.GetFileName(styleSheet)))
+            { error = "打印样式校验失败，未使用选定 CTB。"; return false; }
 
             if (!TryPlotStep("复核布满图纸并居中", () => ApplyFitToPaperAndCenter(psv, ps), out error)) return false;
             WriteMessage($"\n[打印调试] 最终设置: 布满={ps.UseStandardScale && ps.StdScaleType == StdScaleType.ScaleToFit}, 居中={ps.PlotCentered}, 原点=({ps.PlotOrigin.X:0.###},{ps.PlotOrigin.Y:0.###}), 旋转={ps.PlotRotation}, 纸张=({ps.PlotPaperSize.X:0.###},{ps.PlotPaperSize.Y:0.###}), 窗口={FormatWindow(plotWindow)}");

@@ -1,0 +1,19 @@
+﻿<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <AssemblyName>UpgradeAdditionalTests</AssemblyName><OutputType>Library</OutputType><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><PlatformTarget>x64</PlatformTarget><LangVersion>7.3</LangVersion>
+    <OutputPath>..\artifacts\upgrade-regression\harness\</OutputPath><BaseIntermediateOutputPath>..\artifacts\upgrade-regression\obj-harness\</BaseIntermediateOutputPath>
+    <AcadRefDir>D:\Program Files\autodesk\AutoCAD 2024\AutoCAD 2024</AcadRefDir>
+    <PluginPath Condition="'$(PluginPath)' == ''">..\bin\x64\Debug\XYDSignTool.dll</PluginPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System"/><Reference Include="System.Core"/><Reference Include="System.Xaml"/>
+    <Reference Include="PresentationCore"/><Reference Include="PresentationFramework"/><Reference Include="WindowsBase"/>
+    <Reference Include="AcDbMgd"><HintPath>$(AcadRefDir)\AcDbMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="AcMgd"><HintPath>$(AcadRefDir)\AcMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="AcCoreMgd"><HintPath>$(AcadRefDir)\AcCoreMgd.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="AdWindows"><HintPath>$(AcadRefDir)\AdWindows.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="XYDSignTool"><HintPath>$(PluginPath)</HintPath><Private>False</Private></Reference>
+    <Compile Include="UpgradeAdditionalTests.cs"/>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets"/>
+</Project>

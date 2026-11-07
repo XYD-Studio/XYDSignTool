@@ -12,4 +12,5 @@
 *.jpeg binary
 *.ico binary
 *.dwg binary
+*.pmp binary
 *.pdf binary

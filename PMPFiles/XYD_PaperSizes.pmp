@@ -1,0 +1,472 @@
+PIAFILEVERSION_3.0,json
+{
+ "data": {
+  "meta": {
+   "canonical_family_name": "Autodesk ePlot",
+   "canonical_model_name": "pdf",
+   "default_system_cfg": false,
+   "dm_driver_version": 0,
+   "driver_pathname": "D:\\Program Files\\autodesk\\AutoCAD 2024\\AutoCAD 2024\\drv\\pdfplot16.hdi",
+   "driver_tag_line": "PDF ePlot - by Autodesk",
+   "driver_type": 3,
+   "driver_version": "1.1-16.3.61.0",
+   "file_only": true,
+   "friendly_net_name": "",
+   "locale": "4B00409",
+   "localized_family_name": "Autodesk ePlot (PDF)",
+   "localized_model_name": "DWG To PDF",
+   "model_abilities": "000550055000",
+   "platform": "2,10,0",
+   "short_net_name": "",
+   "show_custom_first": false,
+   "toolkit_version": 1,
+   "truetype_as_text": true,
+   "udm_description": "",
+   "user_defined_model_basename": "",
+   "user_defined_model_pathname": "C:\\Users\\Administrator\\AppData\\Roaming\\Autodesk\\AutoCAD 2024\\R24.3\\chs\\Plotters\\PMP Files\\AutoCAD PDF (General Documentation).pmp"
+  },
+  "mod": {
+   "media": {
+    "abilities": "500005500500505555000005550000000550000500000500000",
+    "caps_state": "000000000000000000000000000000000000000000000000000",
+    "size_max_x": 5080.0,
+    "size_max_y": 5080.0,
+    "ui_owner": "11111111111111111111000"
+   }
+  },
+  "udm": {
+   "calibration": {
+    "_x": 1.0,
+    "_y": 1.0
+   },
+   "media": {
+    "description": {
+     "0": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1189.0,
+      "media_bounds_ury": 841.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1189.00W x 841.00H - (0, 0) x (1189, 841) =999949 \u6beb\u7c73",
+      "printable_area": 979749.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1184.0,
+      "printable_bounds_ury": 836.0
+     },
+     "1": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 841.0,
+      "media_bounds_ury": 594.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 841.00W x 594.00H - (0, 0) x (841, 594) =499554 \u6beb\u7c73",
+      "printable_area": 485304.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 836.0,
+      "printable_bounds_ury": 589.0
+     },
+     "2": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1189.0,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1189.00W x 420.00H - (0, 0) x (1189, 420) =499380 \u6beb\u7c73",
+      "printable_area": 483390.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1184.0,
+      "printable_bounds_ury": 415.0
+     },
+     "3": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1336.5,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1336.50W x 420.00H - (0, 0) x (1336.5, 420) =561330 \u6beb\u7c73",
+      "printable_area": 543865.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1331.5,
+      "printable_bounds_ury": 415.0
+     },
+     "4": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1485.0,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1485.00W x 420.00H - (0, 0) x (1485, 420) =623700 \u6beb\u7c73",
+      "printable_area": 604750.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1480.0,
+      "printable_bounds_ury": 415.0
+     },
+     "5": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1633.5,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1633.50W x 420.00H - (0, 0) x (1633.5, 420) =686070 \u6beb\u7c73",
+      "printable_area": 665635.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1628.5,
+      "printable_bounds_ury": 415.0
+     },
+     "6": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1782.0,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1782.00W x 420.00H - (0, 0) x (1782, 420) =748440 \u6beb\u7c73",
+      "printable_area": 726520.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1777.0,
+      "printable_bounds_ury": 415.0
+     },
+     "7": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 420.0,
+      "media_bounds_ury": 297.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 420.00W x 297.00H - (0, 0) x (420, 297) =124740 \u6beb\u7c73",
+      "printable_area": 117670.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 415.0,
+      "printable_bounds_ury": 292.0
+     },
+     "8": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 210.0,
+      "media_bounds_ury": 297.0,
+      "name": "UserDefinedMetric \u7eb5\u5411 210.00W x 297.00H - (0, 0) x (210, 297) =62370 \u6beb\u7c73",
+      "printable_area": 62370.0,
+      "printable_bounds_llx": 0.0,
+      "printable_bounds_lly": 0.0,
+      "printable_bounds_urx": 210.0,
+      "printable_bounds_ury": 297.0
+     },
+     "9": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1051.25,
+      "media_bounds_ury": 594.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1051.25W x 594.00H - (0, 0) x (1051.25, 594) =624442 \u6beb\u7c73",
+      "printable_area": 608090.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1046.25,
+      "printable_bounds_ury": 589.0
+     },
+     "10": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1263.0,
+      "media_bounds_ury": 594.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1263.00W x 594.00H - (0, 0) x (1263, 594) =750222 \u6beb\u7c73",
+      "printable_area": 731752.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1258.0,
+      "printable_bounds_ury": 589.0
+     },
+     "11": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1473.0,
+      "media_bounds_ury": 594.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1473.00W x 594.00H - (0, 0) x (1473, 594) =874962 \u6beb\u7c73",
+      "printable_area": 854392.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1468.0,
+      "printable_bounds_ury": 589.0
+     },
+     "12": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1682.0,
+      "media_bounds_ury": 594.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1682.00W x 594.00H - (0, 0) x (1682, 594) =999108 \u6beb\u7c73",
+      "printable_area": 976448.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1677.0,
+      "printable_bounds_ury": 589.0
+     },
+     "13": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 594.0,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 594.00W x 420.00H - (0, 0) x (594, 420) =249480 \u6beb\u7c73",
+      "printable_area": 239440.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 589.0,
+      "printable_bounds_ury": 415.0
+     },
+     "14": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 742.5,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 742.50W x 420.00H - (0, 0) x (742.5, 420) =311850 \u6beb\u7c73",
+      "printable_area": 300325.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 737.5,
+      "printable_bounds_ury": 415.0
+     },
+     "15": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 891.0,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 891.00W x 420.00H - (0, 0) x (891, 420) =374220 \u6beb\u7c73",
+      "printable_area": 361210.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 886.0,
+      "printable_bounds_ury": 415.0
+     },
+     "16": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1040.5,
+      "media_bounds_ury": 420.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1040.50W x 420.00H - (0, 0) x (1040.5, 420) =437010 \u6beb\u7c73",
+      "printable_area": 422505.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1035.5,
+      "printable_bounds_ury": 415.0
+     },
+     "17": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1486.25,
+      "media_bounds_ury": 841.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1486.25W x 841.00H - (0, 0) x (1486.25, 841) =1.24994e+06 \u6beb\u7c73",
+      "printable_area": 1226763.75,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1481.25,
+      "printable_bounds_ury": 836.0
+     },
+     "18": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 1783.5,
+      "media_bounds_ury": 841.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 1783.50W x 841.00H - (0, 0) x (1783.5, 841) =1.49992e+06 \u6beb\u7c73",
+      "printable_area": 1473778.5,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 1778.5,
+      "printable_bounds_ury": 836.0
+     },
+     "19": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 525.0,
+      "media_bounds_ury": 297.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 525.00W x 297.00H - (0, 0) x (525, 297) =155925 \u6beb\u7c73",
+      "printable_area": 147805.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 520.0,
+      "printable_bounds_ury": 292.0
+     },
+     "20": {
+      "caps_type": 2,
+      "dimensional": true,
+      "media_bounds_urx": 630.0,
+      "media_bounds_ury": 297.0,
+      "name": "UserDefinedMetric \u6a2a\u5411 630.00W x 297.00H - (0, 0) x (630, 297) =187110 \u6beb\u7c73",
+      "printable_area": 177940.0,
+      "printable_bounds_llx": 5.0,
+      "printable_bounds_lly": 5.0,
+      "printable_bounds_urx": 625.0,
+      "printable_bounds_ury": 292.0
+     }
+    },
+    "size": {
+     "0": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A0",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1189.00W x 841.00H - (0, 0) x (1189, 841) =999949 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1189.00 x 841.00\u6beb\u7c73)"
+     },
+     "1": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A1",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 841.00W x 594.00H - (0, 0) x (841, 594) =499554 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (841.00 x 594.00\u6beb\u7c73)"
+     },
+     "2": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+1",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1189.00W x 420.00H - (0, 0) x (1189, 420) =499380 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1189.00 x 420.00\u6beb\u7c73)"
+     },
+     "3": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+1.25",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1336.50W x 420.00H - (0, 0) x (1336.5, 420) =561330 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1336.50 x 420.00\u6beb\u7c73)"
+     },
+     "4": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+1.5",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1485.00W x 420.00H - (0, 0) x (1485, 420) =623700 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1485.00 x 420.00\u6beb\u7c73)"
+     },
+     "5": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+1.75",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1633.50W x 420.00H - (0, 0) x (1633.5, 420) =686070 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1633.50 x 420.00\u6beb\u7c73)"
+     },
+     "6": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+2",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1782.00W x 420.00H - (0, 0) x (1782, 420) =748440 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1782.00 x 420.00\u6beb\u7c73)"
+     },
+     "7": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A3",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 420.00W x 297.00H - (0, 0) x (420, 297) =124740 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (420.00 x 297.00\u6beb\u7c73)"
+     },
+     "8": {
+      "caps_type": 2,
+      "landscape_mode": false,
+      "localized_name": "A4",
+      "media_description_name": "UserDefinedMetric \u7eb5\u5411 210.00W x 297.00H - (0, 0) x (210, 297) =62370 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (210.00 x 297.00\u6beb\u7c73)"
+     },
+     "9": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A1+0.25",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1051.25W x 594.00H - (0, 0) x (1051.25, 594) =624442 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1051.25 x 594.00\u6beb\u7c73)"
+     },
+     "10": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A1+0.5",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1263.00W x 594.00H - (0, 0) x (1263, 594) =750222 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1263.00 x 594.00\u6beb\u7c73)"
+     },
+     "11": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A1+0.75",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1473.00W x 594.00H - (0, 0) x (1473, 594) =874962 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1473.00 x 594.00\u6beb\u7c73)"
+     },
+     "12": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A1+1",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1682.00W x 594.00H - (0, 0) x (1682, 594) =999108 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1682.00 x 594.00\u6beb\u7c73)"
+     },
+     "13": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 594.00W x 420.00H - (0, 0) x (594, 420) =249480 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (594.00 x 420.00\u6beb\u7c73)"
+     },
+     "14": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+0.25",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 742.50W x 420.00H - (0, 0) x (742.5, 420) =311850 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (742.50 x 420.00\u6beb\u7c73)"
+     },
+     "15": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+0.5",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 891.00W x 420.00H - (0, 0) x (891, 420) =374220 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (891.00 x 420.00\u6beb\u7c73)"
+     },
+     "16": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A2+0.75",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1040.50W x 420.00H - (0, 0) x (1040.5, 420) =437010 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1040.50 x 420.00\u6beb\u7c73)"
+     },
+     "17": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A0+0.25",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1486.25W x 841.00H - (0, 0) x (1486.25, 841) =1.24994e+06 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1486.25 x 841.00\u6beb\u7c73)"
+     },
+     "18": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A0+0.5",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 1783.50W x 841.00H - (0, 0) x (1783.5, 841) =1.49992e+06 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (1783.50 x 841.00\u6beb\u7c73)"
+     },
+     "19": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A3+0.25",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 525.00W x 297.00H - (0, 0) x (525, 297) =155925 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (525.00 x 297.00\u6beb\u7c73)"
+     },
+     "20": {
+      "caps_type": 2,
+      "landscape_mode": true,
+      "localized_name": "A3+0.5",
+      "media_description_name": "UserDefinedMetric \u6a2a\u5411 630.00W x 297.00H - (0, 0) x (630, 297) =187110 \u6beb\u7c73",
+      "media_group": 15,
+      "name": "UserDefinedMetric (630.00 x 297.00\u6beb\u7c73)"
+     }
+    }
+   }
+  }
+ },
+ "subver": "json",
+ "version": 0.01
+}

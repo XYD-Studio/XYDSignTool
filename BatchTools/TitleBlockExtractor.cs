@@ -135,9 +135,9 @@ namespace XYDSignTool
                 DrawTitle = title,
                 PageSize = pageSize,
                 DrawScale = GetMappedValue(attrs, rule.DrawScaleTags),
-                Version = GetMappedValue(attrs, new[] { "VERSION", "VER", "版本", "REV" }),
-                Date = GetMappedValue(attrs, new[] { "DATE", "日期" }),
-                Remarks = GetMappedValue(attrs, new[] { "REMARKS", "REMARK", "备注", "NOTE" })
+                Version = GetMappedValue(attrs, rule.VersionTags),
+                Date = GetMappedValue(attrs, rule.DateTags),
+                Remarks = GetMappedValue(attrs, rule.RemarksTags)
             };
 
             try

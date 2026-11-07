@@ -5,6 +5,7 @@ namespace XYDSignTool
 {
     public class SignItem
     {
+        public AttributeRecord SourceRecord { get; set; }
         // ★ 新增：让这个数据行和 CAD 里的真实图块绑定
         public ObjectId ObjId { get; set; }
 

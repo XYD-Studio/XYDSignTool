@@ -206,11 +206,13 @@ namespace XYDSignTool
                         using (Transaction extTr = extDb.TransactionManager.StartTransaction())
                         {
                             BlockTable extBt = extTr.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                            if (extBt.Has(blockName))
+                            ObjectId resolvedId = ResolveLibraryBlock(extBt, extTr, blockName);
+                            if (!resolvedId.IsNull)
                             {
-                                ObjectId srcBlockId = extBt[blockName];
+                                ObjectId srcBlockId = resolvedId;
                                 Dictionary<string, string> defaults = ReadAttributeDefaults(extTr, srcBlockId);
-                                Dictionary<string, string> referenceValues = ReadLibraryReferenceAttributes(extTr, extDb, blockName);
+                                string actualName = ((BlockTableRecord)extTr.GetObject(srcBlockId, OpenMode.ForRead)).Name;
+                                Dictionary<string, string> referenceValues = ReadLibraryReferenceAttributes(extTr, extDb, actualName);
                                 foreach (var kvp in referenceValues)
                                 {
                                     if (!defaults.ContainsKey(kvp.Key) || !string.IsNullOrWhiteSpace(kvp.Value))
@@ -314,13 +316,16 @@ namespace XYDSignTool
                     using (Transaction extTr = extDb.TransactionManager.StartTransaction())
                     {
                         BlockTable extBt = extTr.GetObject(extDb.BlockTableId, OpenMode.ForRead) as BlockTable;
-                        if (!extBt.Has(blockName))
+                        ObjectId resolvedId = ResolveLibraryBlock(extBt, extTr, blockName);
+                        if (resolvedId.IsNull)
                         {
                             error = "母盘中不存在该图块。";
                             return false;
                         }
 
-                        ObjectIdCollection ids = new ObjectIdCollection { extBt[blockName] };
+                        var sourceDefinition = (BlockTableRecord)extTr.GetObject(resolvedId, OpenMode.ForWrite);
+                        if (sourceDefinition.Name != blockName) sourceDefinition.Name = blockName;
+                        ObjectIdCollection ids = new ObjectIdCollection { resolvedId };
                         IdMapping mapping = new IdMapping();
                         targetDb.WblockCloneObjects(ids, targetDb.BlockTableId, mapping, cloneMode, false);
                         extTr.Commit();
@@ -351,6 +356,28 @@ namespace XYDSignTool
             }
 
             return value ?? "";
+        }
+
+        private static ObjectId ResolveLibraryBlock(BlockTable blocks, Transaction tr, string requested)
+        {
+            if (blocks.Has(requested)) return blocks[requested];
+            const string prefix = "XYD-TITLEBLOCK_";
+            if (!requested.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return ObjectId.Null;
+            string suffix = requested.Substring(prefix.Length);
+            string size = TitleBlockRecognitionSettings.ExtractPageSizeFromBlockName(suffix);
+            bool cover = suffix.Contains("封面");
+            var matches = new List<ObjectId>();
+            foreach (ObjectId id in blocks)
+            {
+                var btr = (BlockTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                if (btr.IsLayout || btr.IsAnonymous || !btr.HasAttributeDefinitions || btr.Name.Contains("封面") != cover) continue;
+                if (TitleBlockRecognitionSettings.ExtractPageSizeFromBlockName(btr.Name) != size) continue;
+                bool title = false;
+                foreach (ObjectId child in btr) { var a = tr.GetObject(child, OpenMode.ForRead) as AttributeDefinition; if (a != null && a.Tag.Equals("DRAWTITLE", StringComparison.OrdinalIgnoreCase)) title = true; }
+                if (title) matches.Add(id);
+            }
+            if (matches.Count > 1) throw new InvalidOperationException("图库存在多个同图幅候选，请统一块名：" + requested);
+            return matches.Count == 1 ? matches[0] : ObjectId.Null;
         }
 
         private static string InferPageSizeFromBlockName(string blockName)

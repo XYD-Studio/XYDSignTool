@@ -241,6 +241,11 @@ namespace XYDSignTool
                 MessageBox.Show("请选择打印样式表。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
+            if (NativePlotEngine.ResolveColorPlotStyle(FinalStyleSheet) == null)
+            {
+                MessageBox.Show("请选择有效的颜色相关打印样式文件（.ctb）。", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
 
             foreach (var item in MappingItems)
             {

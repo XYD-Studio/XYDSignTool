@@ -241,9 +241,9 @@ namespace XYDSignTool
             AddAliases(updates, rule.DrawTitleTags, item.DrawTitle);
             AddAliases(updates, rule.PageSizeTags, item.PageSize);
             AddAliases(updates, rule.DrawScaleTags, item.DrawScale);
-            AddAliases(updates, "VERSION,VER,版本,REV", item.Version);
-            AddAliases(updates, "DATE,日期", item.Date);
-            AddAliases(updates, "REMARKS,REMARK,备注,NOTE", item.Remarks);
+            AddAliases(updates, rule.VersionTags, item.Version);
+            AddAliases(updates, rule.DateTags, item.Date);
+            AddAliases(updates, rule.RemarksTags, item.Remarks);
 
             foreach (ObjectId attributeId in block.AttributeCollection)
             {

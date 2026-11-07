@@ -2,16 +2,18 @@
 #define BundleBuildDir "..\Installer\Build\XYDSignTool.bundle"
 #endif
 #ifndef PluginVersion
-#define PluginVersion "1.2.0"
+#define PluginVersion "1.3.0"
 #endif
 #ifndef InstallerVersionLabel
-#define InstallerVersionLabel "V1.2"
+#define InstallerVersionLabel "V1.3"
 #endif
 
 [Setup]
 AppId={{9B3C2D1A-8F7E-6D5C-4B3A-2F1E0D9C8B7A}
 AppName=XYD Toolkit AutoCAD Plugin
 AppVersion={#PluginVersion}
+VersionInfoVersion={#PluginVersion}
+VersionInfoTextVersion={#PluginVersion}.0
 AppPublisher=XYD Studio
 AppPublisherURL=https://www.xy-d.top/
 AppSupportURL=https://www.xy-d.top/

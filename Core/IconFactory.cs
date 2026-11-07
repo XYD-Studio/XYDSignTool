@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Media;
 
@@ -7,6 +8,7 @@ namespace XYDSignTool
     public static class IconFactory
     {
         private const double CanvasSize = 32.0;
+        private static readonly Dictionary<string, ImageSource> Cache = new Dictionary<string, ImageSource>(StringComparer.OrdinalIgnoreCase);
 
         private static readonly Color PanelFill = Color.FromRgb(43, 54, 68);
         private static readonly Color PanelEdge = Color.FromRgb(103, 118, 137);
@@ -24,15 +26,35 @@ namespace XYDSignTool
 
         public static ImageSource GetVectorIcon(string type)
         {
+            return GetVectorIcon(type, 32);
+        }
+        public static ImageSource GetVectorIcon(string type, int size)
+        {
             if (string.IsNullOrWhiteSpace(type)) return null;
+            if (size != 16 && size != 32) throw new ArgumentOutOfRangeException(nameof(size));
+            string key = type.Trim().ToLowerInvariant() + ":" + size;
+            lock (Cache)
+            {
+                ImageSource cached;
+                if (Cache.TryGetValue(key, out cached)) return cached;
+                var image = CreateIcon(type, size); Cache.Add(key, image); return image;
+            }
+        }
+        private static ImageSource CreateIcon(string type, int size)
+        {
 
             var group = new DrawingGroup
             {
-                ClipGeometry = new RectangleGeometry(new Rect(0, 0, CanvasSize, CanvasSize))
+                ClipGeometry = new RectangleGeometry(new Rect(0, 0, size, size))
             };
 
             using (DrawingContext dc = group.Open())
             {
+                dc.PushTransform(new ScaleTransform(size / CanvasSize, size / CanvasSize));
+                // Keep a fixed square viewport, including transparent margins.
+                // Ribbon small buttons use Image's natural size and otherwise
+                // clip the original 32-DIP drawing to a 16-DIP image slot.
+                dc.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, CanvasSize, CanvasSize));
                 dc.PushGuidelineSet(CreateGuidelines());
                 DrawCadPlate(dc);
 
@@ -52,16 +74,19 @@ namespace XYDSignTool
                     case "dynlen": DrawDynamicLengthIcon(dc); break;
                     case "spec": DrawSpecIcon(dc); break;
                     case "linelen": DrawLineLengthIcon(dc); break;
+                    case "plbreak": DrawPolylineBreakIcon(dc); break;
                     case "findtext": DrawFindTextIcon(dc); break;
                     case "replacetext": DrawReplaceTextIcon(dc); break;
                     case "findsame": DrawFindSameIcon(dc); break;
                     case "autonumber": DrawAutoNumberIcon(dc); break;
                     case "rotate": DrawRotateIcon(dc); break;
+                    case "scale": DrawScaleIcon(dc); break;
                     case "embedimage": DrawEmbedImageIcon(dc); break;
                     case "help": DrawHelpIcon(dc); break;
                     default: DrawDefaultIcon(dc); break;
                 }
 
+                dc.Pop();
                 dc.Pop();
             }
 
@@ -80,6 +105,12 @@ namespace XYDSignTool
                 guidelines.GuidelinesY.Add(i + 0.5);
             }
             return guidelines;
+        }
+        private static void DrawScaleIcon(DrawingContext dc)
+        {
+            DrawRoundedRect(dc, RectOf(6, 17, 9, 9), .5, null, PenOf(Cyan, 1.7));
+            DrawRoundedRect(dc, RectOf(13, 6, 13, 13), .5, null, PenOf(Green, 1.7));
+            DrawArrow(dc, P(12, 20), P(23, 9), Yellow, 1.7);
         }
 
         private static void DrawCadPlate(DrawingContext dc)
@@ -164,6 +195,15 @@ namespace XYDSignTool
             path.Figures.Add(fig);
             dc.DrawGeometry(null, RoundPen(Cyan, 2.4), path);
             DrawDimensionLine(dc, 7.5, 25.6, 24.5, Yellow);
+        }
+
+        private static void DrawPolylineBreakIcon(DrawingContext dc)
+        {
+            DrawPolyline(dc, RoundPen(Cyan, 2.2), P(6, 23), P(12, 12), P(16, 16));
+            DrawPolyline(dc, RoundPen(Green, 2.2), P(16, 16), P(22, 21), P(26, 9));
+            dc.DrawEllipse(BrushOf(PanelFill), PenOf(Yellow, 1.6), P(16, 16), 2.5, 2.5);
+            dc.DrawLine(RoundPen(Yellow, 1.2), P(14, 7), P(19, 12));
+            dc.DrawLine(RoundPen(Yellow, 1.2), P(19, 7), P(14, 12));
         }
 
         private static void DrawFindTextIcon(DrawingContext dc)

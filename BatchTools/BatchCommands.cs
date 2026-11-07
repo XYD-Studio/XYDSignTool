@@ -118,6 +118,7 @@ namespace XYDSignTool
         {
             Document activeDoc = Application.DocumentManager.MdiActiveDocument;
             if (activeDoc == null) return;
+            if (BatchPlotSession.IsRunning) { WriteBatchMessage("\n已有批量打印任务正在运行。"); return; }
             Editor ed = activeDoc.Editor;
 
             var allBlocks = GatherTitleBlocks(ed, true, out List<string> externalFilesToOpen);
@@ -132,7 +133,7 @@ namespace XYDSignTool
             }
 
             var availablePrinters = NativePlotEngine.GetAvailablePrinters();
-            var availableStyles = NativePlotEngine.GetAvailablePlotStyles();
+            var availableStyles = NativePlotEngine.GetAvailableColorPlotStyles();
             Dictionary<string, string> finalPaperMapping = new Dictionary<string, string>();
             string defaultPrinter = availablePrinters.Contains("AutoCAD PDF (General Documentation).pc3") ? "AutoCAD PDF (General Documentation).pc3" : (availablePrinters.Count > 0 ? availablePrinters[0] : "");
             string defaultCtb = availableStyles.Contains("acad.ctb") ? "acad.ctb" : (availableStyles.Count > 0 ? availableStyles[0] : "");
@@ -151,58 +152,12 @@ namespace XYDSignTool
             outDir = outDir.Replace("\\", "/");
             if (!outDir.EndsWith("/")) outDir += "/";
 
-            WriteBatchMessage("\n====== 开始原生高级批量打印 ======");
-            int successCount = 0;
-
-            foreach (Document openDoc in Application.DocumentManager)
+            try
             {
-                List<TitleBlockModel> blocksForOpenDoc = allBlocks.Where(b => b.DocumentName == openDoc.Name).ToList();
-                if (blocksForOpenDoc.Count == 0) continue;
-
-                Application.DocumentManager.MdiActiveDocument = openDoc;
-                using (DocumentLock loc = openDoc.LockDocument())
-                {
-                    foreach (var b in blocksForOpenDoc)
-                    {
-                        string safeTitle = SafeStr(b.DrawTitle).Replace("/", "_").Replace(":", "_").Replace("\\", "_").Replace("*", "_").Replace("?", "_").Replace("\"", "_").Replace("<", "_").Replace(">", "_").Replace("|", "_");
-                        string safeNum = SafeStr(b.DrawNum).Replace("/", "_").Replace("\\", "_").Replace(":", "_");
-                        string pdfName = $"{safeNum}_{safeTitle}.pdf";
-                        string requiredPaper = GetPaperName(b.PageSize);
-                        string mappedCanonicalPaper = finalPaperMapping[requiredPaper];
-
-                        WriteBatchMessage($"\n正在打印: {pdfName}...");
-                        if (NativePlotEngine.PlotToPdf(openDoc.Database, b, outDir + pdfName, defaultPrinter, mappedCanonicalPaper, defaultCtb)) successCount++;
-                    }
-                }
+                WriteBatchMessage("\n====== 开始 CTB 临时副本批量打印（源 DWG 保持不变） ======");
+                BatchPlotSession.Start(allBlocks, defaultPrinter, defaultCtb, outDir, finalPaperMapping);
             }
-
-            foreach (string filePath in externalFilesToOpen)
-            {
-                Document tempDoc = Application.DocumentManager.Open(filePath, true);
-                Application.DocumentManager.MdiActiveDocument = tempDoc;
-
-                using (DocumentLock loc = tempDoc.LockDocument())
-                {
-                    foreach (var b in allBlocks)
-                    {
-                        if (b.DocumentName == Path.GetFileName(filePath))
-                        {
-                            string safeTitle = SafeStr(b.DrawTitle).Replace("/", "_").Replace(":", "_").Replace("\\", "_").Replace("*", "_").Replace("?", "_").Replace("\"", "_").Replace("<", "_").Replace(">", "_").Replace("|", "_");
-                            string safeNum = SafeStr(b.DrawNum).Replace("/", "_").Replace("\\", "_").Replace(":", "_");
-                            string pdfName = $"{safeNum}_{safeTitle}.pdf";
-                            string requiredPaper = GetPaperName(b.PageSize);
-                            string mappedCanonicalPaper = finalPaperMapping[requiredPaper];
-
-                            WriteBatchMessage($"\n正在打印: {pdfName}...");
-                            if (NativePlotEngine.PlotToPdf(tempDoc.Database, b, outDir + pdfName, defaultPrinter, mappedCanonicalPaper, defaultCtb)) successCount++;
-                        }
-                    }
-                }
-                tempDoc.CloseAndDiscard();
-            }
-
-            Application.DocumentManager.MdiActiveDocument = activeDoc;
-            Application.ShowAlertDialog($"批量打印结束！\n成功生成 {successCount} 份 PDF。");
+            catch (System.Exception ex) { WriteBatchMessage("\n[打印失败] " + ex.Message); }
         }
 
         // ==================== 辅助私有方法 ====================
@@ -299,7 +254,8 @@ namespace XYDSignTool
         private string GetPaperName(string size)
         {
             if (string.IsNullOrEmpty(size)) return "A3";
-            return size.ToUpper().Replace("+0.50", "+0.5").Replace("+1.00", "+1");
+            string normalized = TitleBlockRecognitionSettings.ExtractPageSizeFromBlockName(size);
+            return string.IsNullOrEmpty(normalized) ? size.Trim() : normalized;
         }
 
         private bool ValidateBatchPrintBlocks(List<TitleBlockModel> blocks)

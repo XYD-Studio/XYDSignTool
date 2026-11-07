@@ -11,11 +11,15 @@ namespace XYDSignTool
     public class TitleBlockRecognitionRule
     {
         public bool Enabled { get; set; } = true;
+        public bool ExactBlockName { get; set; }
         public string BlockNamePrefix { get; set; } = "";
         public string DrawTitleTags { get; set; } = "";
         public string DrawNumTags { get; set; } = "";
         public string DrawScaleTags { get; set; } = "";
         public string PageSizeTags { get; set; } = "";
+        public string VersionTags { get; set; } = "VERSION,VER,版本,REV";
+        public string DateTags { get; set; } = "DATE,日期";
+        public string RemarksTags { get; set; } = "REMARKS,REMARK,备注,NOTE";
         public bool ExtractPageSizeFromBlockName { get; set; }
     }
 
@@ -67,7 +71,19 @@ namespace XYDSignTool
 
         public static List<TitleBlockRecognitionRule> GetActiveRules()
         {
-            List<TitleBlockRecognitionRule> rules = GetBuiltInRules();
+            List<TitleBlockRecognitionRule> rules = new List<TitleBlockRecognitionRule>();
+            var profile = MappingProfileStore.CurrentTitleProfile ?? MappingProfileStore.ActiveTitleProfile();
+            if (profile != null)
+            {
+                foreach (var mapping in profile.Rules)
+                {
+                    Func<string, string> tags = semantic => string.Join(",", mapping.Fields.Where(f => profile.Columns.Any(c => c.Id == f.ColumnId && c.Semantic == semantic)).Select(f => f.Tag));
+                    if (string.IsNullOrWhiteSpace(tags("图名"))) continue;
+                    rules.Add(new TitleBlockRecognitionRule { ExactBlockName = true, BlockNamePrefix = mapping.BlockName,
+                        DrawTitleTags = tags("图名"), DrawNumTags = tags("图号"), DrawScaleTags = tags("比例"), PageSizeTags = tags("图幅"),
+                        VersionTags = tags("版本"), DateTags = tags("日期"), RemarksTags = tags("备注"), ExtractPageSizeFromBlockName = true });
+                }
+            }
             TitleBlockRecognitionSettings settings = Load();
 
             foreach (TitleBlockRecognitionRule rule in settings.Rules)
@@ -78,6 +94,7 @@ namespace XYDSignTool
                 }
             }
 
+            rules.AddRange(GetBuiltInRules());
             return rules;
         }
 
@@ -103,6 +120,7 @@ namespace XYDSignTool
             if (rule == null || string.IsNullOrWhiteSpace(blockName)) return false;
 
             string upperBlockName = blockName.Trim().ToUpperInvariant();
+            if (rule.ExactBlockName) return string.Equals(blockName, rule.BlockNamePrefix, StringComparison.OrdinalIgnoreCase);
             foreach (string prefix in SplitNames(rule.BlockNamePrefix))
             {
                 string upperPrefix = prefix.ToUpperInvariant();
