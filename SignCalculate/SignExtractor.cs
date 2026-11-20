@@ -11,6 +11,46 @@ using Autodesk.AutoCAD.Runtime;
 
 namespace XYDSignTool
 {
+    internal static class SignBlockSchema
+    {
+        internal const string Definition = "XYD-SIGNBLOCK_DYNAMIC";
+        internal const string Visibility = "可见性";
+        internal const string CountTag = "--XYDISCOUNT";
+
+        internal static string ResolveTag(string tag, string state)
+        {
+            return string.IsNullOrEmpty(tag) || string.IsNullOrEmpty(state) || tag == CountTag
+                ? tag : state.Substring(0, 1) + "_" + tag;
+        }
+
+        internal static string ReadState(BlockReference block)
+        {
+            if (!block.IsDynamicBlock) return null;
+            foreach (DynamicBlockReferenceProperty property in block.DynamicBlockReferencePropertyCollection)
+                if (property.PropertyName == Visibility && property.Value is string state && IsState(state))
+                    return state;
+            return null;
+        }
+
+        internal static void SetState(BlockReference block, string state)
+        {
+            if (block.IsDynamicBlock && IsState(state))
+                foreach (DynamicBlockReferenceProperty property in block.DynamicBlockReferencePropertyCollection)
+                    if (!property.ReadOnly && property.PropertyName == Visibility)
+                    {
+                        if (!Equals(property.Value, state)) property.Value = state;
+                        if (ReadState(block) == state) return;
+                        break;
+                    }
+            throw new InvalidOperationException("图库中的标识动态图块缺少可见性状态：" + state);
+        }
+
+        internal static bool IsState(string state)
+        {
+            return state != null && state.Length == 2 && state[1] == '型' && "ADEFG".IndexOf(state[0]) >= 0;
+        }
+    }
+
     public static class SignExtractor
     {
         public static List<SignItem> ExtractFromDatabase(Database db)
@@ -32,6 +72,8 @@ namespace XYDSignTool
                     var block = (BlockReference)tr.GetObject(item.ObjId, OpenMode.ForRead);
                     item.SourceRecord = AttributeMappingService.Capture(db, db.Filename, "Model", block, tr);
                     item.SourceRecord.Mode = item.Mode;
+                    if (item.BlockName.Equals(SignBlockSchema.Definition, StringComparison.OrdinalIgnoreCase))
+                        item.SourceRecord.SignState = SignBlockSchema.ReadState(block);
                 }
                 tr.Commit();
             }
@@ -112,13 +154,28 @@ namespace XYDSignTool
                     string blockName = GetEffectiveBlockName(br, tr);
                     if (blockName.StartsWith("XYD-SIGNBLOCK_", StringComparison.OrdinalIgnoreCase))
                     {
+                        bool unified = blockName.Equals(SignBlockSchema.Definition, StringComparison.OrdinalIgnoreCase);
+                        string state = unified ? SignBlockSchema.ReadState(br) : null;
+                        if (unified && state == null) continue;
                         var attrDict = GetAttributes(br, tr);
-                        if (!includeExcluded && attrDict.ContainsKey("--XYDISCOUNT") && attrDict["--XYDISCOUNT"] == "否") continue;
+                        if (!includeExcluded && NormalizeCountValue(GetDictValue(attrDict, SignBlockSchema.CountTag)) == "否") continue;
+                        if (unified)
+                        {
+                            string prefix = state.Substring(0, 1) + "_";
+                            var active = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                [SignBlockSchema.CountTag] = GetDictValue(attrDict, SignBlockSchema.CountTag)
+                            };
+                            foreach (var attribute in attrDict)
+                                if (attribute.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                                    active[attribute.Key.Substring(prefix.Length)] = attribute.Value;
+                            attrDict = active;
+                        }
 
                         string areaName = attrDict.ContainsKey("--XYDAREA") ? attrDict["--XYDAREA"] : "未分配区域";
                         if (string.IsNullOrEmpty(areaName)) areaName = "未分配区域";
 
-                        if (blockName.Equals("XYD-SIGNBLOCK_D", StringComparison.OrdinalIgnoreCase))
+                        if (state == "D型" || blockName.Equals("XYD-SIGNBLOCK_D", StringComparison.OrdinalIgnoreCase))
                         {
                             // ★ 修正：传入 id (实体的 ObjectId)
                             items.Add(BuildItem(id, blockName, attrDict, areaName, "CN"));

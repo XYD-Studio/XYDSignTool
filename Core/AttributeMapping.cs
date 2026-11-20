@@ -142,6 +142,7 @@ namespace XYDSignTool
         public string Layout { get; set; }
         public string BlockName { get; set; }
         public string Mode { get; set; } = "";
+        public string SignState { get; set; }
         public bool Imported { get; set; }
         public int Category { get; set; }
         public string Area { get; set; }

@@ -274,6 +274,8 @@ namespace XYDSignTool
                         if (updates.Count == 0 && (rule == null || rule.Signatures.Count == 0)) { foreach (var record in group) record.Status = "无修改"; continue; }
                         var block = tr.GetObject(AttributeMappingService.Resolve(db, row), OpenMode.ForRead, false) as BlockReference;
                         if (block == null || !string.Equals(AttributeMappingService.EffectiveName(block, tr), row.BlockName, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("源图块已改变或删除。");
+                        if (row.SignState != null && SignBlockSchema.ReadState(block) != row.SignState)
+                            throw new InvalidOperationException("标识类型已切换，请重新提取后回写。");
                         var owner = (BlockTableRecord)tr.GetObject(block.OwnerId, OpenMode.ForRead);
                         if (!owner.IsLayout || ((Layout)tr.GetObject(owner.LayoutId, OpenMode.ForRead)).LayoutName != row.Layout) throw new InvalidOperationException("源图块所在空间已改变，请重新提取。");
                         var layer = (LayerTableRecord)tr.GetObject(block.LayerId, OpenMode.ForRead);

@@ -52,6 +52,23 @@ XYD_SCALE_ORIGINAL
 XYD_MSCALE
 (command)
 XYD_SCALE_ORIGINAL
+(sssetfirst nil (ssget "_X" '((410 . "Model"))))
+XYD_MSCALE
+P
+L
+200
+XYD_SCALE_VERIFY
+_.U
+XYD_SCALE_ORIGINAL
+(sssetfirst nil (ssget "_X" '((410 . "Model"))))
+XYD_MSCALE
+S
+L
+W
+20
+XYD_SCALE_VERIFY
+_.U
+XYD_SCALE_ORIGINAL
 _.QUIT
 _Y
 "@

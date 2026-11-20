@@ -197,13 +197,11 @@ namespace XYDSignTool
             RibbonPanelSource panelLib = CreatePanel(tab, "图库中心");
 
             RibbonSplitButton dropSign = CreateSplitButton("标识图块", "block");
-            dropSign.Items.Add(CreateButton("A 型标识", "XYD_INS:XYD-SIGNBLOCK_A", "block"));
-            dropSign.Items.Add(CreateButton("B 型标识", "XYD_INS:XYD-SIGNBLOCK_B", "block"));
-            dropSign.Items.Add(CreateButton("C 型标识", "XYD_INS:XYD-SIGNBLOCK_C", "block"));
-            dropSign.Items.Add(CreateButton("D 型标识（中英）", "XYD_INS:XYD-SIGNBLOCK_D", "block"));
-            dropSign.Items.Add(CreateButton("E 型标识", "XYD_INS:XYD-SIGNBLOCK_E", "block"));
-            dropSign.Items.Add(CreateButton("F 型标识", "XYD_INS:XYD-SIGNBLOCK_F", "block"));
-            dropSign.Items.Add(CreateButton("G 型标识", "XYD_INS:XYD-SIGNBLOCK_G", "block"));
+            dropSign.Items.Add(CreateButton("A 型标识", "XYD_INS:A型", "block"));
+            dropSign.Items.Add(CreateButton("D 型标识（中英）", "XYD_INS:D型", "block"));
+            dropSign.Items.Add(CreateButton("E 型标识", "XYD_INS:E型", "block"));
+            dropSign.Items.Add(CreateButton("F 型标识", "XYD_INS:F型", "block"));
+            dropSign.Items.Add(CreateButton("G 型标识", "XYD_INS:G型", "block"));
 
             RibbonSplitButton dropFrame = CreateSplitButton("标准图框", "frame");
             dropFrame.Items.Add(CreateButton("A0 横向图框", "XYD_INS:XYD-TITLEBLOCK_A0", "frame"));
@@ -383,7 +381,7 @@ namespace XYDSignTool
                 case "XYD_TITLEBLOCK_EDIT": return "提取任意图框属性，批量编辑并同步本地电子签。";
                 case "XYD_LINE2PL": return "曲线转 PL 或合并已有 PL；命令行 D 切换保留数据、Z 切换统一高程、F 设置拟合误差。默认不保留数据、顶点统一 Z=0，支持端点容差及多组合并。";
                 case "XYD_PLBREAK": return "无缝打断 PL：默认一点分两段，M 切换多点，两点分三段；保留全部线段、圆弧、宽度及高程，回车确认多点，Esc 取消。";
-                case "XYD_MSCALE": return "多个对象分别绕自身包围盒中心等比例缩放，保留中心高程；2 放大两倍，0.5 缩小一半。支持预选、图块属性联动及一次撤销。";
+                case "XYD_MSCALE": return "各对象绕自身中心缩放。支持倍率、百分比及指定宽高，可锁定宽高比，支持一次撤销。";
                 case "XYD_COST":
                     return "统计标识属性块并生成算量及造价清单。";
                 case "XYD_CAD":
@@ -507,7 +505,8 @@ namespace XYDSignTool
                 if (cmd.StartsWith("XYD_INS:"))
                 {
                     string blockName = cmd.Substring(8).Trim();
-                    BlockManager.InsertBlockFromLibrary(blockName);
+                    if (SignBlockSchema.IsState(blockName)) BlockManager.InsertSignFromLibrary(blockName);
+                    else BlockManager.InsertBlockFromLibrary(blockName);
                 }
                 else
                 {

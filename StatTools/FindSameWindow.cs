@@ -20,7 +20,8 @@ namespace XYDSignTool
         Transparency,
         TextStyle,
         DimensionStyle,
-        HatchPattern
+        HatchPattern,
+        PolylineWidth
     }
 
     public enum FindSameScope

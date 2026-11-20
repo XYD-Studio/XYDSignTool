@@ -28,7 +28,7 @@ namespace XYDSignTool
                 foreach (var c in p.Columns)
                 {
                     string value = Convert.ToString(typeof(SignItem).GetProperty(c.Id).GetValue(item, null), CultureInfo.InvariantCulture);
-                    string tag = Tag(c.Id, item.Mode);
+                    string tag = SignBlockSchema.ResolveTag(Tag(c.Id, item.Mode), row.SignState);
                     string restriction; row.Restrictions.TryGetValue(tag ?? "", out restriction);
                     row.Cells[c.Id] = new AttributeCell { Value = value, Original = value, Tag = tag,
                         Reason = restriction, ReadOnly = restriction != null || c.Id == "AreaSqM" || c.Id == "BasePrice" || c.Id == "UnitPrice" || c.Id == "TotalPrice" || row.Imported || !row.OriginalAttributes.ContainsKey(tag ?? "") };
@@ -85,7 +85,7 @@ namespace XYDSignTool
                     double n; if (!double.TryParse(row.Value(id), NumberStyles.Float, CultureInfo.InvariantCulture, out n) || double.IsNaN(n) || double.IsInfinity(n) || n < 0)
                         throw new InvalidOperationException("宽、高必须是有效非负数字。");
                 }
-                result[Tag("Width", row.Mode)] = row.Value("Width") + "*" + row.Value("Height") + (string.IsNullOrEmpty(row.Value("Thickness")) ? "" : "*" + row.Value("Thickness"));
+                result[row.Cells["Width"].Tag] = row.Value("Width") + "*" + row.Value("Height") + (string.IsNullOrEmpty(row.Value("Thickness")) ? "" : "*" + row.Value("Thickness"));
             }
             return result;
         }

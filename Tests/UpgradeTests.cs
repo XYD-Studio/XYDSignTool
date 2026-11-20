@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -85,6 +86,89 @@ namespace XYDSignTool.Tests
                     }
                     result = ObjectScaleService.Scale(db, new[] { brId }, 3); Check(result.Scaled == 0 && result.Failures.Count == 1, "locked attribute skips whole block");
                     using (var tr = db.TransactionManager.StartTransaction()) Near(((BlockReference)tr.GetObject(brId, OpenMode.ForRead)).ScaleFactors.X, 2, "parent unchanged after failure");
+                }
+            });
+            Record("target width and nonuniform size preserve WCS centers and entity types", () =>
+            {
+                using (var db = new Database(true, true))
+                {
+                    ObjectId lineId, polylineId, circleId;
+                    using (var tr = db.TransactionManager.StartTransaction())
+                    {
+                        var line = new Line(new Point3d(100, 200, 9), new Point3d(120, 210, 9));
+                        var pl = new Polyline { Elevation = 5 };
+                        pl.AddVertexAt(0, new Point2d(40, 50), 0, 0, 0);
+                        pl.AddVertexAt(1, new Point2d(50, 50), 0, 0, 0);
+                        pl.AddVertexAt(2, new Point2d(50, 70), 0, 0, 0);
+                        pl.AddVertexAt(3, new Point2d(40, 70), 0, 0, 0);
+                        pl.Closed = true;
+                        var circle = new Circle(new Point3d(300, 400, 15), Vector3d.ZAxis, 3);
+                        Add(db, tr, line); Add(db, tr, pl); Add(db, tr, circle);
+                        lineId = line.ObjectId; polylineId = pl.ObjectId; circleId = circle.ObjectId;
+                        tr.Commit();
+                    }
+                    Check(ObjectScaleService.ScaleToSize(db, new[] { lineId }, 40, null).Scaled == 1, "locked target width");
+                    var result = ObjectScaleService.ScaleToSize(db, new[] { lineId, polylineId, circleId }, 60, 25);
+                    Check(result.Scaled == 2 && result.Failures.Count == 1, "line and PL scaled, circle skipped");
+                    using (var tr = db.TransactionManager.StartTransaction())
+                    {
+                        var line = (Line)tr.GetObject(lineId, OpenMode.ForRead);
+                        Near(line.StartPoint.DistanceTo(new Point3d(80, 192.5, 9)), 0, "line start");
+                        Near(line.EndPoint.DistanceTo(new Point3d(140, 217.5, 9)), 0, "line end");
+                        var pl = (Polyline)tr.GetObject(polylineId, OpenMode.ForRead);
+                        Near(pl.GetPoint3dAt(0).DistanceTo(new Point3d(15, 47.5, 5)), 0, "PL start");
+                        Near(pl.GetPoint3dAt(2).DistanceTo(new Point3d(75, 72.5, 5)), 0, "PL corner");
+                        Near(((Circle)tr.GetObject(circleId, OpenMode.ForRead)).Radius, 3, "circle unchanged");
+                    }
+                }
+            });
+            Record("find same matches PL geometric width independently of plotted lineweight", () =>
+            {
+                var type = typeof(FindSameCommands);
+                var snapshot = type.GetMethod("BuildSnapshot", BindingFlags.NonPublic | BindingFlags.Static);
+                var dialogCriteria = type.GetMethod("BuildDialogCriteria", BindingFlags.NonPublic | BindingFlags.Static);
+                var matches = type.GetMethod("Matches", BindingFlags.NonPublic | BindingFlags.Static);
+                var criteria = new[] { FindSameCriterionKind.Layer, FindSameCriterionKind.PolylineWidth };
+                using (var db = new Database(true, true))
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    var table = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForWrite);
+                    var otherLayer = new LayerTableRecord { Name = "OTHER_WIDTH_LAYER" };
+                    ObjectId otherId = table.Add(otherLayer);
+                    tr.AddNewlyCreatedDBObject(otherLayer, true);
+                    Func<double,double,Polyline> make = (start, end) =>
+                    {
+                        var p = new Polyline();
+                        p.AddVertexAt(0, Point2d.Origin, 0, start, end);
+                        p.AddVertexAt(1, new Point2d(1000, 0), 0, 20, 20);
+                        Add(db, tr, p);
+                        return p;
+                    };
+                    var sample = make(100, 100);
+                    sample.LineWeight = LineWeight.ByLayer;
+                    var options = (List<FindSameCriterion>)dialogCriteria.Invoke(null,
+                        new[] { snapshot.Invoke(null, new object[] { sample, tr, true }) });
+                    Check(options.Single(c => c.Kind == FindSameCriterionKind.PolylineWidth).Value == "100" &&
+                          options.Single(c => c.Kind == FindSameCriterionKind.LineWeight).Value == "随层", "dialog shows width 100 independently of ByLayer");
+                    var same = make(100, 100);
+                    same.LineWeight = LineWeight.LineWeight050;
+                    var wider = make(200, 200);
+                    var variable = make(100, 200);
+                    var other = make(100, 100);
+                    other.LayerId = otherId;
+                    var legacy = new Polyline2d(Poly2dType.SimplePoly,
+                        new Point3dCollection(new[] { Point3d.Origin, new Point3d(1000, 0, 0) }),
+                        0, false, 100, 100, new Autodesk.AutoCAD.Geometry.DoubleCollection(new[] { 0.0, 0.0 }));
+                    Add(db, tr, legacy);
+                    Func<Entity, Entity, bool> match = (a, b) => (bool)matches.Invoke(null, new[]
+                    {
+                        snapshot.Invoke(null, new object[] { a, tr, true }),
+                        snapshot.Invoke(null, new object[] { b, tr, true }), criteria
+                    });
+                    Check(match(sample, same), "equal geometry with different printed weight");
+                    Check(match(sample, legacy), "old-style 2D PL width");
+                    Check(!match(sample, wider) && !match(sample, variable) && !match(sample, other), "different width, variable width or layer");
+                    Check(match(variable, make(100, 200)) && !match(variable, make(200, 100)), "ordered variable-width signature");
                 }
             });
         }

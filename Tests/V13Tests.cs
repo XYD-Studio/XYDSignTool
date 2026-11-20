@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Autodesk.AutoCAD.DatabaseServices;
+using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
@@ -41,6 +43,32 @@ namespace XYDSignTool.Tests
             File.WriteAllLines(Path.Combine(Root, "artifacts", "v13-tests", "frames.txt"), lines);
         }
         private static void Check(bool condition, string name) { if (!condition) throw new InvalidOperationException(name); }
+
+        [CommandMethod("XYD_V13_INSERT_SIGN")]
+        public void InsertSign()
+        {
+            var ed = Application.DocumentManager.MdiActiveDocument.Editor;
+            var state = ed.GetString("\nFixture state A/D/E/F/G: ");
+            if (state.Status != PromptStatus.OK || state.StringResult.Length != 1 || "ADEFG".IndexOf(state.StringResult[0]) < 0) return;
+            typeof(BlockManager).GetMethod("InsertSignFromLibrary", BindingFlags.NonPublic | BindingFlags.Static)
+                .Invoke(null, new object[] { state.StringResult + "型" });
+        }
+
+        [CommandMethod("XYD_V13_VERIFY_SIGNS")]
+        public void VerifyInsertedSigns()
+        {
+            string file = Path.Combine(Root, "artifacts", "v13-tests", "results.txt");
+            try
+            {
+                var items = SignExtractor.ExtractFromDatabase(Application.DocumentManager.MdiActiveDocument.Database);
+                Check(items.Count == 6 && items.Select(i => i.ObjId).Distinct().Count() == 5 &&
+                      items.Select(i => i.SourceRecord.SignState).Distinct().Count() == 5 &&
+                      items.All(i => i.BlockName == "XYD-SIGNBLOCK_DYNAMIC" && i.IsCount == "是"), "five insertion entries initialize state and attributes");
+                File.AppendAllText(file, "PASS native five sign insertion entries share one definition\n");
+            }
+            catch (System.Exception ex) { File.AppendAllText(file, "FAIL " + ex + "\n"); }
+        }
+
         [CommandMethod("XYD_V13_TEST")]
         public void Run()
         {
@@ -51,6 +79,7 @@ namespace XYDSignTool.Tests
                 TestMapping(); output.Add("PASS mapping: empty title / layout / source conflict / backups / summarization / selected exports");
                 TestSources(); output.Add("PASS sources: multi-block same column / model and layout / constants / same filename different directories / readonly / unsaved document memory write");
                 TestStandard(); output.Add("PASS standard signs: quantity inference / count filtering / cost arithmetic / successive size edits / shared bilingual conflict / full JSON roundtrip");
+                TestDynamicSigns(); output.Add("PASS dynamic signs: five states / independent stretch and properties / mixed legacy / guarded edit / DWG roundtrip");
                 TestSignatures(); output.Add("PASS signatures: 100 people -> 8 definitions / multi-position / name visibility / repeat / replacement / nested privacy");
                 TestResources(); output.Add("PASS resources: canonical aliases for all title blocks / full paper tokens / CAD tables");
                 TestPrint(); output.Add("PASS printing: native PMP association / all new paper sizes / model and layout PDFs / rotated UCS restoration");
@@ -194,6 +223,106 @@ namespace XYDSignTool.Tests
             all[0].Cells["Area"].Value = "新增区域"; StandardSignAdapter.RefreshCalculated(all[0]);
             var reordered = StandardSignAdapter.SortRows(all, new[] { "区域一" }); Check(reordered.Last().Area == "新增区域" && reordered.Last().Category != reordered.First().Category, "edited areas regroup exports and subtotals");
         }
+        private static void TestDynamicSigns()
+        {
+            const string unified = "XYD-SIGNBLOCK_DYNAMIC";
+            string file = Path.Combine(Root, "artifacts", "v13-tests", "dynamic-signs.dwg");
+            File.Copy(Path.Combine(Root, "Blocks", "XYD_Blocks.dwg"), file, true);
+            using (var db = new Database(false, true))
+            {
+                db.ReadDwgFile(file, FileShare.Read, true, "");
+                db.CloseInput(true);
+                var samples = SignExtractor.ExtractFromDatabase(db);
+                Check(samples.Count == 8 && samples.All(s => s.BlockName == unified), "unified library samples including two D rows");
+                var byState = samples.GroupBy(s => s.SourceRecord.SignState).ToDictionary(g => g.Key, g => g.ToList());
+                Check(byState.Count == 5 && byState["A型"].Count == 3 && byState["D型"].Count == 2, "five states with A/B/C samples");
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    Func<BlockReference,string,DynamicBlockReferenceProperty> prop = (b,n) =>
+                        b.DynamicBlockReferencePropertyCollection.Cast<DynamicBlockReferenceProperty>().Single(p => p.PropertyName == n);
+                    var aHeights = byState["A型"].Select(item => Convert.ToDouble(
+                        prop((BlockReference)tr.GetObject(item.ObjId, OpenMode.ForRead), "A型向上").Value)).OrderBy(value => value).ToArray();
+                    Check(Math.Abs(aHeights[1] - aHeights[0] - 3000) < 1e-5 &&
+                          Math.Abs(aHeights[2] - aHeights[0] - 8000.3467606418) < 1e-5, "B/C heights recreated with A");
+                    foreach (var state in byState)
+                    {
+                        var block = (BlockReference)tr.GetObject(state.Value[0].ObjId, OpenMode.ForWrite);
+                        var visibility = prop(block, "可见性");
+                        Check(visibility.GetAllowedValues().Length == 5, "visibility choices");
+                        var right = prop(block, state.Key + "向右");
+                        var up = prop(block, state.Key + "向上");
+                        Check(!right.ReadOnly && !up.ReadOnly, state.Key + " has two writable axes");
+                        Extents3d before = VisibleSignFrame(block, tr);
+                        double newWidth = Convert.ToDouble(right.Value) + 650;
+                        double newHeight = Convert.ToDouble(up.Value) + 850;
+                        right.Value = newWidth;
+                        up.Value = newHeight;
+                        Extents3d after = VisibleSignFrame(block, tr);
+                        Check(Math.Abs(after.MaxPoint.X - before.MaxPoint.X - 650) < 1e-5 &&
+                              Math.Abs(after.MaxPoint.Y - before.MaxPoint.Y - 850) < 1e-5 &&
+                              before.MinPoint.DistanceTo(after.MinPoint) < 1e-5,
+                            state.Key + " expands right/up from fixed base, " + before.MinPoint + " / " + before.MaxPoint +
+                            " -> " + after.MinPoint + " / " + after.MaxPoint);
+                        visibility.Value = state.Key == "A型" ? "D型" : "A型";
+                        visibility.Value = state.Key;
+                        Check(Math.Abs(Convert.ToDouble(prop(block, state.Key + "向右").Value) - newWidth) < 1e-5 &&
+                              Math.Abs(Convert.ToDouble(prop(block, state.Key + "向上").Value) - newHeight) < 1e-5, "stretch restored after switch");
+                    }
+                    tr.Commit();
+                }
+                var afterStretch = SignExtractor.ExtractFromDatabase(db);
+                Check(afterStretch.Select(i => i.Width).SequenceEqual(samples.Select(i => i.Width)), "finished dimensions still read from attributes");
+                ObjectId aId = byState["A型"][0].ObjId;
+                Check(ObjectScaleService.ScaleToSize(db, new[] { aId }, 12000, null).Scaled == 1, "size uses visible sign frame");
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    var frame = VisibleSignFrame((BlockReference)tr.GetObject(aId, OpenMode.ForRead), tr);
+                    Check(Math.Abs(frame.MaxPoint.X - frame.MinPoint.X - 12000) < 1e-5, "sign has visible target width");
+                }
+                CreateFrame(db, "XYD-SIGNBLOCK_B", new Dictionary<string, string> { { "XYD-SIZE", "123*456*7" }, { "--XYDNAME", "旧标识" } });
+                db.SaveAs(file, DwgVersion.AC1032);
+            }
+
+            var rows = StandardSignAdapter.Rows(SignExtractor.ExtractExternalDatabase(file));
+            Check(rows.Count == 9 && rows.Any(r => r.BlockName == "XYD-SIGNBLOCK_B" && r.Value("IsCount") == "是"), "legacy sign without count attribute");
+            var profile = StandardSignAdapter.Profile(false);
+            var bilingual = rows.Where(r => r.SignState == "D型").ToList();
+            var cn = bilingual.Single(r => r.Mode == "CN");
+            cn.Cells["Width"].Value = "1234.5";
+            cn.Cells["IsCount"].Value = "否";
+            Check(AttributeMappingWriter.Write(bilingual, profile, false).Updated == 1, "write active D state");
+            Check(SignExtractor.ExtractExternalDatabase(file).Count == 7, "D pair excluded by shared count");
+            using (var db = new Database(false, true))
+            {
+                db.ReadDwgFile(file, FileShare.Read, true, "");
+                db.CloseInput(true);
+                var excluded = StandardSignAdapter.Rows(SignExtractor.ExtractFromDatabase(db, true)).Where(r => r.SignState == "D型").ToList();
+                Check(excluded.Count == 2 && excluded.Single(r => r.Mode == "CN").Value("Width") == "1234.5", "bilingual width updated and excluded still editable");
+                using (var tr = db.TransactionManager.StartTransaction())
+                {
+                    var block = (BlockReference)tr.GetObject(excluded[0].ObjectId, OpenMode.ForWrite);
+                    block.DynamicBlockReferencePropertyCollection.Cast<DynamicBlockReferenceProperty>()
+                        .Single(p => p.PropertyName == "可见性").Value = "A型";
+                    tr.Commit();
+                }
+                db.SaveAs(file, DwgVersion.AC1032);
+            }
+            cn.Cells["Width"].Value = "2200";
+            var stale = AttributeMappingWriter.Write(bilingual, profile, false);
+            Check(stale.Updated == 0 && stale.Details.Any(s => s.Contains("已切换")), "stale state blocks attribute write");
+        }
+
+        private static Extents3d VisibleSignFrame(BlockReference block, Transaction tr)
+        {
+            var definition = (BlockTableRecord)tr.GetObject(block.BlockTableRecord, OpenMode.ForRead);
+            var frames = definition.Cast<ObjectId>().Select(id => tr.GetObject(id, OpenMode.ForRead))
+                .OfType<Polyline>().Where(p => p.Visible).Select(p => p.GeometricExtents).ToList();
+            var extents = frames[0];
+            foreach (var box in frames.Skip(1)) extents.AddExtents(box);
+            extents.TransformBy(block.BlockTransform);
+            return extents;
+        }
+
         private static void TestSignatures()
         {
             string file = Path.Combine(Root, "artifacts", "v13-tests", "signature-library.dwg");
@@ -358,7 +487,8 @@ namespace XYDSignTool.Tests
                 }
                 doc.Editor.CurrentUserCoordinateSystem = Matrix3d.Rotation(.35, Vector3d.ZAxis, Point3d.Origin) * Matrix3d.Displacement(new Vector3d(15, 25, 0));
                 var frames = TitleBlockExtractor.ScanDatabase(db, doc.Name).Where(b => ids.Contains(b.ObjId)).ToList(); Check(frames.Count == 5, "new frame extraction");
-                string style = NativePlotEngine.GetAvailablePlotStyles().FirstOrDefault(s => s.IndexOf("monochrome", StringComparison.OrdinalIgnoreCase) >= 0);
+                string style = NativePlotEngine.GetAvailablePlotStyles().FirstOrDefault(s => s.Equals("monochrome.ctb", StringComparison.OrdinalIgnoreCase));
+                Check(db.PlotStyleMode && style != null, "CTB test drawing and monochrome plot style");
                 foreach (var frame in frames)
                 {
                     string canonical = NativePlotEngine.TryMatchMedia(frame.PageSize, media); Check(canonical != null, "PMP recognizes " + frame.PageSize);

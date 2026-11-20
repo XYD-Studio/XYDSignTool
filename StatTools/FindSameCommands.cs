@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.Colors;
@@ -16,7 +17,10 @@ namespace XYDSignTool
         {
             public string MatchValue { get; set; }
             public string DisplayValue { get; set; }
+            public double[] Widths { get; set; }
         }
+
+        private const double WidthTolerance = 1e-6;
 
         private sealed class EntitySnapshot
         {
@@ -73,6 +77,7 @@ namespace XYDSignTool
             List<ObjectId> allMatches = new List<ObjectId>();
             List<ObjectId> currentSpaceMatches = new List<ObjectId>();
             int skipped = 0;
+            bool comparePolylineWidths = window.SelectedCriteria.Contains(FindSameCriterionKind.PolylineWidth);
             using (Transaction tr = doc.Database.TransactionManager.StartTransaction())
             {
                 IEnumerable<ObjectId> candidateIds = GetCandidateIds(doc.Database, tr, window.Scope, manualIds);
@@ -82,7 +87,7 @@ namespace XYDSignTool
                     {
                         Entity candidate = tr.GetObject(id, OpenMode.ForRead, false) as Entity;
                         if (candidate == null) continue;
-                        EntitySnapshot candidateSnapshot = BuildSnapshot(candidate, tr);
+                        EntitySnapshot candidateSnapshot = BuildSnapshot(candidate, tr, comparePolylineWidths);
                         if (!Matches(sample, candidateSnapshot, window.SelectedCriteria)) continue;
 
                         allMatches.Add(id);
@@ -145,7 +150,7 @@ namespace XYDSignTool
             return selected.Status == PromptStatus.OK ? selected.ObjectId : ObjectId.Null;
         }
 
-        private static EntitySnapshot BuildSnapshot(Entity entity, Transaction tr)
+        private static EntitySnapshot BuildSnapshot(Entity entity, Transaction tr, bool includePolylineWidth = true)
         {
             EntitySnapshot snapshot = new EntitySnapshot();
             Add(snapshot, FindSameCriterionKind.ObjectType, GetObjectType(entity), GetObjectType(entity));
@@ -155,6 +160,7 @@ namespace XYDSignTool
             TryAdd(snapshot, FindSameCriterionKind.LineWeight,
                 () => ((int)entity.LineWeight).ToString(),
                 () => GetLineWeightDisplay(entity.LineWeight));
+            if (includePolylineWidth) AddPolylineWidth(snapshot, entity, tr);
             TryAdd(snapshot, FindSameCriterionKind.Transparency,
                 () => GetTransparencyKey(entity.Transparency),
                 () => GetTransparencyDisplay(entity.Transparency));
@@ -196,6 +202,7 @@ namespace XYDSignTool
                 FindSameCriterionKind.BlockName,
                 FindSameCriterionKind.Linetype,
                 FindSameCriterionKind.Color,
+                FindSameCriterionKind.PolylineWidth,
                 FindSameCriterionKind.LineWeight,
                 FindSameCriterionKind.Transparency,
                 FindSameCriterionKind.TextStyle,
@@ -228,10 +235,66 @@ namespace XYDSignTool
                 PropertyValue actual;
                 if (!sample.Values.TryGetValue(criterion, out expected) ||
                     !candidate.Values.TryGetValue(criterion, out actual) ||
-                    !string.Equals(expected.MatchValue, actual.MatchValue, StringComparison.OrdinalIgnoreCase))
+                    !ValuesMatch(expected, actual))
                     return false;
             }
             return true;
+        }
+
+        private static bool ValuesMatch(PropertyValue expected, PropertyValue actual)
+        {
+            if (expected.Widths == null)
+                return string.Equals(expected.MatchValue, actual.MatchValue, StringComparison.OrdinalIgnoreCase);
+            return expected.Widths.Length == actual.Widths.Length &&
+                   expected.Widths.Zip(actual.Widths, WidthsEqual).All(equal => equal);
+        }
+
+        private static bool WidthsEqual(double first, double second)
+        {
+            return Math.Abs(first - second) <= WidthTolerance;
+        }
+
+        private static void AddPolylineWidth(EntitySnapshot snapshot, Entity entity, Transaction tr)
+        {
+            double[] widths;
+            if (entity is Polyline polyline)
+            {
+                int count = polyline.NumberOfVertices - (polyline.Closed ? 0 : 1);
+                if (count < 1) return;
+                widths = new double[count * 2];
+                for (int i = 0; i < count; i++)
+                {
+                    widths[i * 2] = polyline.GetStartWidthAt(i);
+                    widths[i * 2 + 1] = polyline.GetEndWidthAt(i);
+                }
+            }
+            else if (entity is Polyline2d legacy && legacy.PolyType == Poly2dType.SimplePoly)
+            {
+                var vertices = legacy.Cast<ObjectId>()
+                    .Select(id => (Vertex2d)tr.GetObject(id, OpenMode.ForRead)).ToList();
+                int count = vertices.Count - (legacy.Closed ? 0 : 1);
+                if (count < 1) return;
+                widths = new double[count * 2];
+                for (int i = 0; i < count; i++)
+                {
+                    widths[i * 2] = vertices[i].StartWidth;
+                    widths[i * 2 + 1] = vertices[i].EndWidth;
+                }
+            }
+            else return;
+
+            double min = widths.Min();
+            double max = widths.Max();
+            if (double.IsNaN(min) || double.IsNaN(max) || double.IsInfinity(min) || double.IsInfinity(max)) return;
+            bool constant = WidthsEqual(min, max);
+            string display = constant
+                ? min.ToString("0.######", CultureInfo.CurrentCulture)
+                : string.Format(CultureInfo.CurrentCulture, "变宽 {0:0.######}–{1:0.######}（{2} 段）", min, max, widths.Length / 2);
+            snapshot.Values[FindSameCriterionKind.PolylineWidth] = new PropertyValue
+            {
+                Widths = constant ? new[] { min } : widths,
+                DisplayValue = display
+            };
         }
 
         private static IEnumerable<ObjectId> GetCandidateIds(
@@ -339,7 +402,8 @@ namespace XYDSignTool
                 case FindSameCriterionKind.BlockName: return "图块名";
                 case FindSameCriterionKind.Linetype: return "线型";
                 case FindSameCriterionKind.Color: return "颜色";
-                case FindSameCriterionKind.LineWeight: return "线宽";
+                case FindSameCriterionKind.LineWeight: return "打印线宽";
+                case FindSameCriterionKind.PolylineWidth: return "PL 几何宽度";
                 case FindSameCriterionKind.Transparency: return "透明度";
                 case FindSameCriterionKind.TextStyle: return "文字样式";
                 case FindSameCriterionKind.DimensionStyle: return "标注样式";

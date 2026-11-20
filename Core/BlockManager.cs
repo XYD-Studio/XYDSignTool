@@ -13,6 +13,16 @@ namespace XYDSignTool
     {
         public static void InsertBlockFromLibrary(string blockName)
         {
+            InsertBuiltInBlock(blockName, null);
+        }
+
+        internal static void InsertSignFromLibrary(string state)
+        {
+            InsertBuiltInBlock(SignBlockSchema.Definition, state);
+        }
+
+        private static void InsertBuiltInBlock(string blockName, string signState)
+        {
             var doc = Application.DocumentManager.MdiActiveDocument;
             if (doc == null) return;
             var ed = doc.Editor;
@@ -30,7 +40,7 @@ namespace XYDSignTool
             string[] libraryFiles = Directory.GetFiles(blocksDir, "*.dwg");
             if (libraryFiles.Length == 0) return;
 
-            InsertBlockFromLibraryCore(blockName, libraryFiles, false);
+            InsertBlockFromLibraryCore(blockName, libraryFiles, false, signState);
         }
 
         public static void InsertBlockFromLibrary(string blockName, string sourceDwgPath, bool promptOnDuplicate)
@@ -48,7 +58,7 @@ namespace XYDSignTool
             InsertBlockFromLibraryCore(blockName, new[] { sourceDwgPath }, promptOnDuplicate);
         }
 
-        private static void InsertBlockFromLibraryCore(string blockName, string[] libraryFiles, bool promptOnDuplicate)
+        private static void InsertBlockFromLibraryCore(string blockName, string[] libraryFiles, bool promptOnDuplicate, string signState = null)
         {
             var doc = Application.DocumentManager.MdiActiveDocument;
             if (doc == null || string.IsNullOrWhiteSpace(blockName)) return;
@@ -155,7 +165,8 @@ namespace XYDSignTool
                 if (blockId == ObjectId.Null) return;
 
                 // 3. 提示用户插入点
-                PromptPointOptions ppo = new PromptPointOptions($"\n请指定 [{blockName}] 的插入点: ");
+                string displayName = signState == null ? blockName : signState + "标识";
+                PromptPointOptions ppo = new PromptPointOptions($"\n请指定 [{displayName}] 的插入点: ");
                 PromptPointResult ppr = ed.GetPoint(ppo);
 
                 if (ppr.Status == PromptStatus.OK)
@@ -187,9 +198,18 @@ namespace XYDSignTool
                                 }
                             }
                         }
+                        if (signState != null)
+                        {
+                            try { SignBlockSchema.SetState(br, signState); }
+                            catch (System.Exception ex)
+                            {
+                                ed.WriteMessage("\n[XYD 错误] " + ex.Message);
+                                return;
+                            }
+                        }
                         tr3.Commit();
                     }
-                    ed.WriteMessage($"\n[XYD] 成功插入 [{blockName}]。\n");
+                    ed.WriteMessage($"\n[XYD] 成功插入 [{displayName}]。\n");
                 }
             }
         }
@@ -212,13 +232,11 @@ namespace XYDSignTool
                                 ObjectId srcBlockId = resolvedId;
                                 Dictionary<string, string> defaults = ReadAttributeDefaults(extTr, srcBlockId);
                                 string actualName = ((BlockTableRecord)extTr.GetObject(srcBlockId, OpenMode.ForRead)).Name;
-                                Dictionary<string, string> referenceValues = ReadLibraryReferenceAttributes(extTr, extDb, actualName);
-                                foreach (var kvp in referenceValues)
+                                if (!actualName.Equals(SignBlockSchema.Definition, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    if (!defaults.ContainsKey(kvp.Key) || !string.IsNullOrWhiteSpace(kvp.Value))
-                                    {
-                                        defaults[kvp.Key] = kvp.Value;
-                                    }
+                                    foreach (var kvp in ReadLibraryReferenceAttributes(extTr, extDb, actualName))
+                                        if (!defaults.ContainsKey(kvp.Key) || !string.IsNullOrWhiteSpace(kvp.Value))
+                                            defaults[kvp.Key] = kvp.Value;
                                 }
 
                                 LibraryBlockData data = new LibraryBlockData
